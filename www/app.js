@@ -30,6 +30,7 @@ const IC = {
   import: '<path d="M12 3v12M7 10l5 5 5-5M5 15v5h14v-5"/>', export: '<path d="M12 15V3M7 8l5-5 5 5M5 15v5h14v-5"/>',
   lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>', copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>',
+  menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
   bell: '<path d="M18 16V11a6 6 0 1 0-12 0v5l-2 2h16z"/><path d="M10 21h4"/>', swap: '<path d="M7 7h13l-4-4M17 17H4l4 4"/>',
 };
 const ic = (k, st = '') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" ${st ? `style="${st}"` : ''}>${IC[k] || ''}</svg>`;
@@ -72,6 +73,7 @@ const catById = id => DB.cats.find(c => c.id === id);
 const walById = id => DB.wallets.find(w => w.id === id);
 const catColor = c => c && c.rang ? c.rang : PALETTE[Math.abs([...String(c ? c.id : '')].reduce((h, ch) => h * 31 + ch.charCodeAt(0) | 0, 7)) % PALETTE.length];
 const me = () => DB.settings.ism || t('me');
+const W = () => live(DB.wallets).sort((a, b) => (a.tartib ?? 99) - (b.tartib ?? 99));
 
 async function persist() { await Platform.save(DB); scheduleNotifications(); }
 function touch(o) { o.u = now(); return o; }
@@ -79,14 +81,25 @@ function upsert(col, rec) { touch(rec); const i = DB[col].findIndex(x => x.id ==
 function remove(col, id) { const r = DB[col].find(x => x.id === id); if (r) { r.d = true; touch(r); } }
 
 /* =================== Pul =================== */
-const rate = () => +DB.settings.kurs || 0;
-const toUZS = (n, cur) => cur === 'USD' ? n * rate() : n;
+/* kurslar: Markaziy bank (DB.rates), bölmasa qölda kiritilgan $ kursi */
+const SYM = { USD: '$', EUR: '€', RUB: '₽', GBP: '£', CNY: '¥', JPY: '¥', KZT: '₸', TRY: '₺', KRW: '₩', AED: 'AED', KGS: 'KGS', TJS: 'TJS' };
+const PRE = ['USD', 'EUR', 'GBP'];
+const rateItem = c => DB.rates && DB.rates.list ? DB.rates.list.find(x => x.c === c) : null;
+function rateOf(c) { if (!c || c === 'UZS') return 1; const it = rateItem(c); if (it) return it.r; if (c === 'USD') return +DB.settings.kurs || 0; return 0; }
+const rate = () => rateOf('USD');
+const toUZS = (n, cur) => cur && cur !== 'UZS' ? n * rateOf(cur) : n;
 const sp = n => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+const unit = cur => !cur || cur === 'UZS' ? t('sum') : (SYM[cur] || cur);
 function fmt(n, cur = 'UZS', sign = false) {
-  const neg = n < 0; n = Math.abs(n);
-  let s = cur === 'USD' ? '$' + (Math.round(n * 100) / 100).toLocaleString('en-US', { maximumFractionDigits: 2 }).replace(/,/g, ' ') : sp(Math.round(n)) + ' ' + t('sum');
+  const neg = n < 0; n = Math.abs(n); let s;
+  if (!cur || cur === 'UZS') s = sp(Math.round(n)) + ' ' + t('sum');
+  else { const v = (Math.round(n * 100) / 100).toLocaleString('en-US', { maximumFractionDigits: 2 }).replace(/,/g, ' '); s = PRE.includes(cur) ? SYM[cur] + v : v + ' ' + (SYM[cur] || cur); }
   return (neg ? '−' : sign ? '+' : '') + s;
 }
+/* bosh sahifada summalarni yaşiriş (👁) */
+const money = (n, cur = 'UZS', sign = false) => DB.settings.yashir ? '••••• ' + unit(cur) : fmt(n, cur, sign);
+const CURS = () => { const top = ['UZS', 'USD', 'EUR', 'RUB']; const rest = DB.rates && DB.rates.list ? DB.rates.list.map(x => x.c).filter(c => !top.includes(c)) : []; return [...top, ...rest]; };
+const curName = c => { if (c === 'UZS') return t('sum_name'); const it = rateItem(c); return it ? (it.n[L()] || it.n.uz || c) : c; };
 function short(n) {
   const a = Math.abs(n);
   if (a >= 1e9) return (n / 1e9).toFixed(1).replace('.0', '') + ' ' + t('bln');
@@ -121,7 +134,7 @@ function balance(w) {
   }
   return b;
 }
-const totalBalance = () => live(DB.wallets).reduce((s, w) => s + toUZS(balance(w), w.cur), 0);
+const totalBalance = () => W().reduce((s, w) => s + toUZS(balance(w), w.cur), 0);
 function stats(r, who) {
   const S = { inc: 0, exp: 0, byCat: {}, byInc: {}, byGroup: { z: 0, h: 0, j: 0 }, byWho: {}, list: [] };
   for (const x of live(DB.tx)) {
@@ -142,13 +155,13 @@ const recKey = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
 const recPaid = (r, d) => (r.paid || []).includes(recKey(d));
 function recUnpaidThisMonth() { const d = today(); return live(DB.rec).filter(r => r.faol !== false && !recPaid(r, d)); }
 
-/* kuniga qancha */
-function allowance() {
-  const r = monthRange(0), S = stats(r), d = today();
+/* tejaş rejasi: oylik jamğariş maqsadi (daromadning p %) */
+function savePlan() {
+  const r = monthRange(0), S = stats(r), d = today(), p = +DB.settings.tejash_foiz || 20;
   const daysLeft = Math.round((r.b - d) / 864e5);
   const recLeft = recUnpaidThisMonth().reduce((s, x) => s + toUZS(x.s, (walById(x.w) || {}).cur), 0);
-  const avail = S.inc - S.exp - recLeft;
-  return { avail, daysLeft, perDay: daysLeft > 0 ? Math.max(0, avail) / daysLeft : 0, inc: S.inc, recLeft };
+  const target = S.inc * p / 100, spent = S.exp - S.byGroup.j, allowed = S.inc - target - recLeft, remaining = allowed - spent;
+  return { p, target, spent, allowed, remaining, daysLeft, recLeft, inc: S.inc, perDay: daysLeft > 0 ? Math.max(0, remaining) / daysLeft : 0 };
 }
 
 /* moliyaviy salomatlik */
@@ -186,18 +199,51 @@ const sw = (k, on, attr = 'data-sw') => `<button class="sw ${on ? 'on' : ''}" ${
 const perNav = r => `<div class="mnav"><button class="ib" data-off="-1">${ic('left')}</button><b>${r.label}</b><button class="ib" data-off="1" ${r.off >= 0 ? 'disabled style="opacity:.35"' : ''}>${ic('right')}</button></div>`;
 const perSeg = () => `<div class="seg full">${['week', 'month', 'quarter', 'year'].map(p => `<button class="${UI.per === p ? 'on' : ''}" data-per="${p}">${t('per_' + p)}</button>`).join('')}</div>`;
 
+const SUB = ['rates', 'learn', 'settings'];
 function render() {
   if (!DB) return;
   if (!DB.settings.ism) return onboarding();
-  const pages = { home: pageHome, tx: pageTx, report: pageReport, plan: pagePlan, settings: pageSettings };
-  const th = document.documentElement.dataset.theme;
+  const pages = { home: pageHome, tx: pageTx, report: pageReport, plan: pagePlan, more: pageMore, rates: pageRates, learn: pageLearn, settings: pageSettings };
+  const th = document.documentElement.dataset.theme, sub = SUB.includes(UI.page), navOn = sub ? 'more' : UI.page;
   $('#root').innerHTML = `<div class="app"><main class="main" id="main">
-   <header class="top"><h1>${t('pg_' + UI.page)}</h1>
+   <header class="top">${sub ? `<button class="ib" data-pg="more">${ic('left')}</button>` : ''}<h1>${t('pg_' + UI.page)}</h1>
     <div class="seg">${LANGS.map(([k]) => `<button class="${L() === k ? 'on' : ''}" data-lang="${k}">${k.toUpperCase()}</button>`).join('')}</div>
     <button class="ib" data-act="theme">${ic(th === 'dark' ? 'sun' : 'moon')}</button></header>
    <div class="page">${pages[UI.page]()}</div></main>
    ${['home', 'tx', 'report'].includes(UI.page) ? `<button class="fab" data-act="add" aria-label="${t('add')}">${ic('plus')}</button>` : ''}
-   <nav class="nav">${[['home', 'home'], ['tx', 'list'], ['report', 'chart'], ['plan', 'target'], ['settings', 'gear']].map(([p, i]) => `<button class="${UI.page === p ? 'on' : ''}" data-pg="${p}">${ic(i)}${t('nav_' + p)}</button>`).join('')}</nav></div>`;
+   <nav class="nav">${[['home', 'home'], ['tx', 'list'], ['report', 'chart'], ['plan', 'target'], ['more', 'menu']].map(([p, i]) => `<button class="${navOn === p ? 'on' : ''}" data-pg="${p}">${ic(i)}${t('nav_' + p)}</button>`).join('')}</nav></div>`;
+}
+
+/* ---------- Boşqa (menyu) ---------- */
+function pageMore() {
+  const L_ = LESSONS[L()] || LESSONS.uz, done = L_.filter(x => (DB.settings.bilim || {})[x.id]?.ok).length;
+  const usd = rateItem('USD');
+  const item = (pg, e, ttl, sub) => `<button class="mi" data-pg="${pg}"><div class="ico">${e}</div><div class="tx"><b>${ttl}</b><small>${sub}</small></div>${ic('right')}</button>`;
+  return `<div class="card" style="padding:6px 12px">
+   ${item('rates', '💱', t('pg_rates'), usd ? `1 $ = ${fmt(usd.r)}${DB.rates.date ? ' · ' + DB.rates.date : ''}` : t('rates_sub'))}
+   ${item('learn', '📚', t('pg_learn'), t('learn_prog', { a: done, b: L_.length }))}
+   ${item('settings', '⚙️', t('pg_settings'), t('settings_sub'))}</div>
+   <div class="small muted" style="text-align:center">${t('app')} · v1.1</div>`;
+}
+
+/* ---------- Valyuta kurslari ---------- */
+let CONV = { a: '100', c: 'USD', rev: false, q: '' };
+function pageRates() {
+  const R = DB.rates;
+  const head = `<div class="card"><div class="ch"><div><h2>🏦 ${t('cbu')}</h2><p>${R ? t('rates_date', { d: esc(R.date || '') }) : t('rates_none')}</p></div><button class="btn sm alt" data-act="ratesref">${ic('swap')}${t('refresh')}</button></div>
+   ${R ? '' : `<div class="tip wn"><span>⚠️</span><div>${t('rates_off')}</div></div>`}</div>`;
+  if (!R) return head;
+  const r = rateOf(CONV.c), a = parseAmt(CONV.a), res = CONV.rev ? (r ? a / r : 0) : a * r;
+  const conv = `<div class="card"><div class="ch"><h2>🧮 ${t('calc')}</h2></div>
+   <div class="g2"><div class="fld"><label>${CONV.rev ? t('sum') : esc(CONV.c)}</label><input id="cva" inputmode="decimal" value="${esc(fmtInput(CONV.a))}"></div>
+   <div class="fld"><label>${t('currency')}</label><select id="cvc">${CURS().filter(c => c !== 'UZS').map(c => `<option ${c === CONV.c ? 'selected' : ''} value="${c}">${c} — ${esc(curName(c))}</option>`).join('')}</select></div></div>
+   <div style="display:flex;align-items:center;gap:10px;margin-top:12px"><button class="ib" data-act="cvswap">${ic('swap')}</button><b class="num" style="font-family:var(--fd);font-size:22px">= ${CONV.rev ? fmt(res, CONV.c) : fmt(res)}</b></div></div>`;
+  const q = CONV.q.trim().toLowerCase();
+  const top = ['USD', 'EUR', 'RUB', 'GBP', 'CNY', 'KZT', 'TRY', 'JPY'];
+  const list = [...R.list].sort((x, y) => { const i = top.indexOf(x.c), j = top.indexOf(y.c); return (i < 0 ? 99 : i) - (j < 0 ? 99 : j) || x.c.localeCompare(y.c); })
+    .filter(x => !q || x.c.toLowerCase().includes(q) || Object.values(x.n).join(' ').toLowerCase().includes(q));
+  return `${head}${conv}<div class="card"><div class="fld" style="margin-bottom:6px"><input id="rq" placeholder="${t('search')}" value="${esc(CONV.q)}"></div>
+   ${list.map(x => `<div class="row" data-rc="${x.c}" style="cursor:pointer"><div class="ico sm" style="font-size:12px;font-weight:800;font-family:var(--fm)">${x.c}</div><div class="tx"><b>${esc(x.n[L()] || x.n.uz)}</b><small>1 ${x.c}</small></div><div class="pct num" style="text-align:right"><b>${sp(Math.floor(x.r))}${(x.r % 1).toFixed(2).slice(1)}</b><small class="${x.d > 0 ? 'neg' : x.d < 0 ? 'pos' : 'muted'}">${x.d > 0 ? '▲' : x.d < 0 ? '▼' : '='} ${Math.abs(x.d).toFixed(2)}</small></div></div>`).join('')}</div>`;
 }
 
 /* ---------- Boşlaş (birinçi marta) ---------- */
@@ -207,51 +253,108 @@ function onboarding() {
    <div class="seg full">${LANGS.map(([k, n]) => `<button class="${L() === k ? 'on' : ''}" data-lang="${k}">${n}</button>`).join('')}</div>
    <div class="card" style="display:grid;gap:14px">
     <div class="fld"><label>${t('ob_name')}</label><input id="obName" placeholder="${t('ob_name_ph')}" maxlength="30"></div>
-    <div class="fld"><label>${t('rate')}</label><input id="obRate" inputmode="decimal" value="${sp(DB.settings.kurs)}"></div>
+    ${DB.rates ? '' : `<div class="fld"><label>${t('rate')}</label><input id="obRate" inputmode="decimal" value="${sp(DB.settings.kurs)}"></div>`}
     <div class="small muted">${t('ob_start')}</div>
-    ${live(DB.wallets).map(w => `<div class="fld"><label>${w.e} ${walName(w)} (${w.cur === 'USD' ? '$' : t('sum')})</label><input data-ob="${w.id}" inputmode="decimal" placeholder="0"></div>`).join('')}
+    ${W().map(w => `<div class="fld"><label>${w.e} ${walName(w)} (${unit(w.cur)})</label><input data-ob="${w.id}" inputmode="decimal" placeholder="0"></div>`).join('')}
    </div>
    <button class="btn w" data-act="obdone">${t('ob_go')} →</button></div></main></div>`;
 }
 
 /* ---------- Boş sahifa ---------- */
-function pageHome() {
-  const r = monthRange(UI.homeOff), S = stats(r), A = allowance(), H = health(), cur = UI.homeOff === 0;
-  const wal = live(DB.wallets);
-  const alerts = [];
-  if (cur) {
-    for (const c of live(DB.cats).filter(c => c.tur === 'x' && c.limit > 0)) {
-      const s = catSpentMonth(c.id), p = s / c.limit * 100;
-      if (p >= 100) alerts.push(['var(--bad)', `${c.e} ${t('al_over', { c: catName(c), p: Math.round(p) })}`]);
-      else if (p >= 80) alerts.push(['var(--warn)', `${c.e} ${t('al_near', { c: catName(c), p: Math.round(p) })}`]);
-    }
-    const d = today();
-    for (const x of recUnpaidThisMonth()) { const due = recDue(x, d), n = Math.round((due - d) / 864e5); if (n <= 3) alerts.push([n < 0 ? 'var(--bad)' : 'var(--warn)', `🔁 ${t(n < 0 ? 'al_rec_late' : n === 0 ? 'al_rec_today' : 'al_rec_soon', { n: esc(x.nom), d: n })} — ${fmt(x.s, (walById(x.w) || {}).cur)}`]); }
-    for (const x of live(DB.debts).filter(x => !x.yopiq && x.muddat)) { const n = Math.round((pd(x.muddat) - d) / 864e5); if (n <= 3) alerts.push([n < 0 ? 'var(--bad)' : 'var(--warn)', `🤝 ${t(x.tur === 'berdim' ? 'al_debt_in' : 'al_debt_out', { k: esc(x.kim) })}: ${fmt(debtLeft(x), x.cur)} — ${n < 0 ? t('overdue') : fmtDay(pd(x.muddat))}`]); }
+function homeAlerts() {
+  const alerts = [], d = today();
+  for (const c of live(DB.cats).filter(c => c.tur === 'x' && c.limit > 0)) {
+    const s = catSpentMonth(c.id), p = s / c.limit * 100;
+    if (p >= 100) alerts.push(['var(--bad)', `${c.e} ${t('al_over', { c: catName(c), p: Math.round(p) })}`]);
+    else if (p >= 80) alerts.push(['var(--warn)', `${c.e} ${t('al_near', { c: catName(c), p: Math.round(p) })}`]);
   }
+  for (const x of recUnpaidThisMonth()) { const due = recDue(x, d), n = Math.round((due - d) / 864e5); if (n <= 3) alerts.push([n < 0 ? 'var(--bad)' : 'var(--warn)', `🔁 ${t(n < 0 ? 'al_rec_late' : n === 0 ? 'al_rec_today' : 'al_rec_soon', { n: esc(x.nom), d: n })} — ${money(x.s, (walById(x.w) || {}).cur)}`]); }
+  for (const x of live(DB.debts).filter(x => !x.yopiq && x.muddat)) { const n = Math.round((pd(x.muddat) - d) / 864e5); if (n <= 3) alerts.push([n < 0 ? 'var(--bad)' : 'var(--warn)', `🤝 ${t(x.tur === 'berdim' ? 'al_debt_in' : 'al_debt_out', { k: esc(x.kim) })}: ${money(debtLeft(x), x.cur)} — ${n < 0 ? t('overdue') : fmtDay(pd(x.muddat))}`]); }
+  return alerts;
+}
+function rateChips() {
+  if (!DB.rates) return '';
+  const it = ['USD', 'EUR', 'RUB'].map(rateItem).filter(Boolean);
+  return `<div class="rates" data-pg="rates">${it.map(x => `<div><small>${SYM[x.c] || x.c} ${x.c}</small><b class="num">${sp(x.r.toFixed(2)).replace(/ (\d\d)$/, '.$1')}</b><em class="${x.d > 0 ? 'neg' : x.d < 0 ? 'pos' : 'muted'}">${x.d > 0 ? '▲' : x.d < 0 ? '▼' : '='}${Math.abs(x.d).toFixed(2)}</em></div>`).join('')}<span class="muted">${ic('right')}</span></div>`;
+}
+function dailyTip() {
+  const H = health(); const tips = (TIPS[L()] || TIPS.uz);
+  let tip = tips[Math.floor(today() / 864e5) % tips.length];
+  if (H && H.score < 60) tip = H.tip;
+  return `<div class="card tipc" data-pg="learn"><div class="em">💡</div><div><small>${t('tip_day')}</small><div>${tip}</div></div><span class="muted">${ic('right')}</span></div>`;
+}
+function planCard() {
+  const P = savePlan();
+  if (P.inc <= 0) return `<div class="card"><div class="ch"><h2>🐷 ${t('plan_t')}</h2></div><div class="small muted">${t('allow_noinc_s')}</div></div>`;
+  const over = P.remaining < 0, pc = P.allowed > 0 ? Math.min(100, P.spent / P.allowed * 100) : 100;
+  const col = over ? 'var(--bad)' : pc >= 85 ? 'var(--warn)' : 'var(--good)';
+  return `<div class="card"><div class="ch"><div><h2>🐷 ${t('plan_t')}</h2><p>${t('plan_goal', { s: money(P.target), p: P.p })}</p></div><button class="ib pl" data-act="planedit">${ic('edit')}</button></div>
+   <b class="num" style="font-family:var(--fd);font-size:19px;color:${over ? 'var(--bad)' : 'inherit'}">${over ? t('plan_over', { s: money(-P.remaining) }) : t('plan_day', { s: money(P.perDay) })}</b>
+   <div class="bar" style="height:10px;margin:10px 0 6px"><i style="width:${pc}%;--c:${col}"></i></div>
+   <div class="small muted">${t('plan_spent', { a: money(P.spent), b: money(Math.max(0, P.allowed)) })} · ${t('days_left', { d: P.daysLeft })}${P.recLeft ? ' · ' + t('allow_rec', { s: money(P.recLeft) }) : ''}</div></div>`;
+}
+function pageHome() {
+  const r = monthRange(UI.homeOff), S = stats(r), H = health(), cur = UI.homeOff === 0, hid = DB.settings.yashir;
+  const alerts = cur ? homeAlerts() : [];
   const recent = live(DB.tx).sort((a, b) => b.dt.localeCompare(a.dt) || b.u - a.u).slice(0, 5);
   return `
-  <div class="hero"><small>${t('total_bal')}</small><div class="big num">${fmt(totalBalance())}</div>
+  <div class="hero"><div class="tot" data-act="walsheet"><small>${t('total_bal')} ›</small><div class="big num">${money(totalBalance())}</div></div>
+   <button class="eye" data-act="eye" aria-label="eye">${hid ? '🙈' : '👁'}</button>
    <div class="mnav" style="margin:-4px 0 10px;position:relative;z-index:1;color:#fff"><button class="ib pl" style="color:#fff" data-hoff="-1">${ic('left')}</button><b style="font-size:13.5px">${r.label}</b><button class="ib pl" style="color:#fff;${cur ? 'opacity:.3' : ''}" data-hoff="1" ${cur ? 'disabled' : ''}>${ic('right')}</button></div>
-   <div class="two"><div><small>↓ ${t('income')}</small><b class="num">${fmt(S.inc)}</b></div><div><small>↑ ${t('expense')}</small><b class="num">${fmt(S.exp)}</b></div></div></div>
-  ${wal.length ? `<div class="wl">${wal.map(w => `<div class="wc"><span>${w.e}</span><small>${esc(walName(w))}</small><b class="num ${balance(w) < 0 ? 'neg' : ''}">${fmt(balance(w), w.cur)}</b></div>`).join('')}</div>` : ''}
+   <div class="two"><div data-act="incsheet" style="cursor:pointer"><small>↓ ${t('income')} ›</small><b class="num">${money(S.inc)}</b></div><div data-act="expsheet" style="cursor:pointer"><small>↑ ${t('expense')} ›</small><b class="num">${money(S.exp)}</b></div></div></div>
+  ${rateChips()}
   ${alerts.length ? `<div style="display:grid;gap:8px">${alerts.map(([c, m]) => `<div class="alert" style="--c:${c}">${m}</div>`).join('')}</div>` : ''}
-  ${cur ? `<div class="card"><div class="allow"><div class="em">📅</div><div style="flex:1">
-    ${A.inc > 0 ? `<small class="muted">${t('allow_t')}</small><b class="num ${A.avail < 0 ? 'neg' : ''}">${A.avail < 0 ? t('allow_over') : fmt(A.perDay)}</b><small class="muted">${t('allow_s', { d: A.daysLeft, s: fmt(Math.max(0, A.avail)) })}${A.recLeft ? ' · ' + t('allow_rec', { s: fmt(A.recLeft) }) : ''}</small>`
-      : `<b style="font-size:16px">${t('allow_noinc')}</b><small class="muted">${t('allow_noinc_s')}</small>`}</div></div></div>` : ''}
+  ${cur ? planCard() : ''}
   ${cur && H ? `<div class="card"><div class="health">${ringSvg(H.score, H.col)}<div><div class="small muted">${t('health')}</div><div class="lbl" style="color:${H.col}">${t(H.lvl)}</div><div class="tip" style="padding:0;border:0;background:none;margin-top:4px">${H.tip}</div></div></div></div>` : ''}
+  ${dailyTip()}
   <div class="card"><div class="ch"><h2>${t('recent')}</h2><button class="lnk" data-pg="tx">${t('all')} →</button></div>
-   ${recent.length ? recent.map((x, i) => txRow(x, i)).join('') : `<div class="empty"><div class="em">🧾</div><b>${t('no_tx')}</b>${t('no_tx_s')}</div>`}</div>`;
+   ${recent.length ? recent.map((x, i) => txRow(x, i, hid)).join('') : `<div class="empty"><div class="em">🧾</div><b>${t('no_tx')}</b>${t('no_tx_s')}</div>`}</div>`;
 }
+function walletSheet() {
+  const ws = W(); const tot = totalBalance();
+  const byCur = {}; ws.forEach(w => { byCur[w.cur] = (byCur[w.cur] || 0) + balance(w); });
+  modal(`${mhead(t('where_money'))}<div class="mb">
+   <div class="kp" style="text-align:center"><small>${t('total_bal')}</small><b class="num" style="font-size:24px">${money(tot)}</b></div>
+   <div>${ws.map(w => { const b = balance(w), uzs = toUZS(b, w.cur), pc = tot > 0 ? Math.max(0, uzs) / tot * 100 : 0;
+     return `<div class="row"><div class="ico sm">${w.e}</div><div class="tx"><b>${esc(walName(w))}</b><div class="bar" style="margin-top:5px"><i style="width:${pc}%"></i></div></div><div class="pct num" style="text-align:right"><b class="${b < 0 ? 'neg' : ''}">${money(b, w.cur)}</b>${w.cur !== 'UZS' ? `<small class="muted">≈ ${money(uzs)}</small>` : `<small class="muted">${Math.round(pc)}%</small>`}</div></div>`; }).join('')}</div>
+   ${Object.keys(byCur).length > 1 ? `<div class="chips" style="flex-wrap:wrap">${Object.entries(byCur).map(([c, v]) => `<span class="chip">${c}: ${money(v, c)}</span>`).join('')}</div>` : ''}
+   <div class="g2"><button class="btn sm alt" data-act="transfer">${ic('swap')}${t('transfer')}</button><button class="btn sm alt" data-pg="settings">${ic('gear')}${t('wallets')}</button></div></div>`);
+}
+function typeSheet(tur) {
+  const r = monthRange(UI.homeOff), S = stats(r), by = tur === 'd' ? S.byInc : S.byCat, tot = tur === 'd' ? S.inc : S.exp;
+  const xs = S.list.filter(x => x.tur === tur).sort((a, b) => b.dt.localeCompare(a.dt) || b.u - a.u);
+  const cnt = {}; xs.forEach(x => cnt[x.c] = (cnt[x.c] || 0) + 1);
+  modal(`${mhead((tur === 'd' ? '↓ ' + t('income') : '↑ ' + t('expense')) + ' · ' + r.label)}<div class="mb">
+   <div class="kp" style="text-align:center"><b class="num ${tur === 'd' ? 'pos' : 'neg'}" style="font-size:24px">${money(tot)}</b><small>${t('ops_n', { n: xs.length })}</small></div>
+   ${tot ? `<div>${Object.entries(by).sort((a, b) => b[1] - a[1]).map(([id, v]) => { const c = catById(id);
+      return `<div class="row tap" data-catd="${id}" data-src="home"><div class="ico sm" style="--c:${catColor(c)}">${c ? c.e : '❓'}</div><div class="tx"><b>${esc(catName(c))} <span class="cnt">${t('times', { n: cnt[id] })}</span></b><div class="bar" style="margin-top:5px"><i style="width:${v / tot * 100}%;--c:${catColor(c)}"></i></div></div><div class="pct num">${money(v)}<small>${(v / tot * 100).toFixed(1)}%</small></div></div>`; }).join('')}</div>` : `<div class="empty"><div class="em">🧾</div><b>${t('no_tx')}</b></div>`}
+   ${xs.length ? `<div><div class="small muted" style="margin:4px 0 8px">${t('recent')}</div>${xs.slice(0, 8).map((x, i) => txRow(x, i, DB.settings.yashir)).join('')}</div>` : ''}
+   <button class="btn alt w" data-act="seeall" data-tt="${tur}">${t('all')} →</button></div>`);
+}
+
+function catSheet(cid, src) {
+  const rep = src === 'rep', r = rep ? range(UI.per, UI.off) : monthRange(UI.homeOff), who = rep ? UI.who : '';
+  const c = catById(cid), xs = stats(r, who).list.filter(x => x.c === cid).sort((a, b) => b.dt.localeCompare(a.dt) || b.u - a.u);
+  const tot = xs.reduce((s, x) => s + txUZS(x), 0), inc = c && c.tur === 'd';
+  const days = {}; xs.forEach(x => (days[x.dt] = days[x.dt] || []).push(x)); let i = 0;
+  modal(`${mhead(`${c ? c.e : '❓'} ${esc(catName(c))} · ${r.label}${who ? ' · 👤 ' + esc(who) : ''}`)}<div class="mb">
+   <div class="g2"><div class="kp"><small>${t('jami')}</small><b class="num ${inc ? 'pos' : 'neg'}">${money(tot)}</b><small>${t('times', { n: xs.length })}</small></div>
+   <div class="kp"><small>${t('avg_one')}</small><b class="num">${money(xs.length ? tot / xs.length : 0)}</b></div></div>
+   ${xs.length ? `<div>${Object.entries(days).map(([d, list]) => { const sum = list.reduce((s, x) => s + txUZS(x), 0);
+     return `<div class="dh"><span>${fmtDay(pd(d))}, ${I18N[L()].wd[(pd(d).getDay() + 6) % 7]}</span><span class="${inc ? 'pos' : 'neg'}">${money(sum)}</span></div>${list.map(x => txRow(x, i++, DB.settings.yashir)).join('')}`; }).join('')}</div>
+   <div class="small muted" style="text-align:center">${t('tap_edit')}</div>` : `<div class="empty"><div class="em">🧾</div><b>${t('no_tx')}</b></div>`}</div>`);
+}
+
 function ringSvg(v, col) {
   const R = 36, C = 2 * Math.PI * R;
   return `<div class="ring"><svg viewBox="0 0 84 84"><circle cx="42" cy="42" r="${R}" fill="none" stroke="var(--s3)" stroke-width="8"/><circle cx="42" cy="42" r="${R}" fill="none" stroke="${col}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${C * v / 100} ${C}"/></svg><b>${v}</b></div>`;
 }
-function txRow(x, i = 0) {
+function txRow(x, i = 0, hid = false) {
+  const F = hid ? money : fmt;
   const w = walById(x.w), c = catById(x.c);
   let icon, title, sub, am, cls;
-  if (x.tur === 'o') { const w2 = walById(x.w2); icon = '🔄'; title = t('transfer'); sub = `${walName(w)} → ${walName(w2)}`; am = fmt(x.s, w && w.cur); cls = ''; }
-  else { icon = c ? c.e : '❓'; title = catName(c); sub = [x.n, walName(w)].filter(Boolean).map(esc).join(' · '); am = fmt(x.s, w && w.cur, x.tur === 'd'); cls = x.tur === 'd' ? 'pos' : ''; if (x.tur === 'x') am = '−' + am; }
+  if (x.tur === 'o') { const w2 = walById(x.w2); icon = '🔄'; title = t('transfer'); sub = `${walName(w)} → ${walName(w2)}`; am = F(x.s, w && w.cur); cls = ''; }
+  else { icon = c ? c.e : '❓'; title = catName(c); sub = [x.n, walName(w)].filter(Boolean).map(esc).join(' · '); am = F(x.s, w && w.cur, x.tur === 'd'); cls = x.tur === 'd' ? 'pos' : ''; if (x.tur === 'x') am = '−' + am; }
   const who = members().length > 1 && x.kim ? ` · 👤 ${esc(x.kim)}` : '';
   return `<div class="tr" style="--i:${i}" data-edit="${x.id}"><div class="ico sm" style="--c:${c ? catColor(c) : 'var(--acc)'}">${icon}</div><div class="tx"><b>${esc(title)}</b><small>${sub}${who}</small></div><div class="am num ${cls}">${am}<small>${fmtDay(pd(x.dt))}</small></div></div>`;
 }
@@ -281,25 +384,34 @@ function pageReport() {
   const chg = (a, b) => b > 0 ? Math.round((a - b) / b * 100) : null;
   const ce = chg(S.exp, P.exp), ci = chg(S.inc, P.inc);
   const cats = Object.entries(S.byCat).sort((a, b) => b[1] - a[1]);
+  const cnt = {}; S.list.forEach(x => cnt[x.c] = (cnt[x.c] || 0) + 1);
   const R = 80, C = 2 * Math.PI * R; let off = 0;
   const donut = cats.length ? `<div class="donut"><svg viewBox="0 0 200 200"><circle cx="100" cy="100" r="${R}" fill="none" stroke="var(--s3)" stroke-width="26"/>${cats.map(([id, v]) => { const len = v / S.exp * C; const el = `<circle cx="100" cy="100" r="${R}" fill="none" stroke="${catColor(catById(id))}" stroke-width="26" stroke-dasharray="${Math.max(0, len - 1.5)} ${C}" stroke-dashoffset="${-off}"/>`; off += len; return el; }).join('')}</svg><div class="ctr"><div><b class="num">${short(S.exp)}</b><small>${t('expense')}</small></div></div></div>` : '';
-  const pill = (v, invert) => v === null ? '' : `<em style="color:${(v > 0) !== !!invert ? 'var(--bad)' : 'var(--good)'}">${v > 0 ? '▲' : v < 0 ? '▼' : '='} ${Math.abs(v)}%</em>`;
+  const pill = (v, a, b, invert) => { if (v === null && !(a - b)) return ''; const dv = a - b, bad = (dv > 0) !== !!invert;
+    return `<em style="color:${dv === 0 ? 'var(--muted)' : bad ? 'var(--bad)' : 'var(--good)'}">${dv > 0 ? '▲' : dv < 0 ? '▼' : '='} ${v === null ? t('new_s') : Math.abs(v) + '%'} · ${fmt(dv, 'UZS', true)}</em>`; };
+  const changes = [...new Set([...Object.keys(S.byCat), ...Object.keys(P.byCat)])].map(id => ({ id, a: S.byCat[id] || 0, b: P.byCat[id] || 0 })).map(x => ({ ...x, d: x.a - x.b })).filter(x => x.d);
+  const up = changes.filter(x => x.d > 0).sort((p, q) => q.d - p.d).slice(0, 3), down = changes.filter(x => x.d < 0).sort((p, q) => p.d - q.d).slice(0, 3);
+  const chRow = x => { const c = catById(x.id), pc = x.b > 0 ? Math.round(x.d / x.b * 100) : null;
+    return `<div class="row"><div class="ico sm" style="--c:${catColor(c)}">${c ? c.e : '❓'}</div><div class="tx"><b>${esc(catName(c))}</b><small>${fmt(x.b)} → ${fmt(x.a)}</small></div><div class="pct num ${x.d > 0 ? 'neg' : 'pos'}">${fmt(x.d, 'UZS', true)}<small>${pc === null ? t('new_s') : (x.d > 0 ? '▲' : '▼') + Math.abs(pc) + '%'}</small></div></div>`; };
   return `${perSeg()}${perNav(r)}
   ${mem.length > 1 ? `<div class="chips">${['', ...mem].map(m => `<button class="chip ${UI.who === m ? 'on' : ''}" data-whochip="${esc(m)}">${m ? '👤 ' + esc(m) : '👥 ' + t('everyone')}</button>`).join('')}</div>` : ''}
   <div class="sum3">
-   <div class="kp"><small>${t('income')}</small><b class="num pos">${fmt(S.inc)}</b>${pill(ci, true)}</div>
-   <div class="kp"><small>${t('expense')}</small><b class="num neg">${fmt(S.exp)}</b>${pill(ce)}</div>
+   <div class="kp"><small>${t('income')}</small><b class="num pos">${fmt(S.inc)}</b>${pill(ci, S.inc, P.inc, true)}</div>
+   <div class="kp"><small>${t('expense')}</small><b class="num neg">${fmt(S.exp)}</b>${pill(ce, S.exp, P.exp)}</div>
    <div class="kp"><small>${t('left')}</small><b class="num ${bal < 0 ? 'neg' : ''}">${fmt(bal, 'UZS', true)}</b></div>
    <div class="kp"><small>${t('save_rate')}</small><b class="num">${saveP === null ? '—' : saveP + '%'}</b></div></div>
   <div class="card"><div class="ch"><h2>🍩 ${t('by_cat')}</h2>${ce !== null ? `<span class="small muted">${t('vs_prev')}</span>` : ''}</div>
    ${cats.length ? donut + `<div class="cl">${cats.map(([id, v]) => { const c = catById(id), p = v / S.exp * 100, pv = P.byCat[id] || 0, d = chg(v, pv);
-      return `<div class="row"><div class="ico sm" style="--c:${catColor(c)}">${c ? c.e : '❓'}</div><div class="tx"><b>${esc(catName(c))}</b><div class="bar" style="margin-top:5px"><i style="width:${p}%;--c:${catColor(c)}"></i></div></div><div class="pct num">${fmt(v)}<small>${p.toFixed(1)}% ${d === null ? '' : `<span style="color:${d > 0 ? 'var(--bad)' : 'var(--good)'}">${d > 0 ? '▲' : '▼'}${Math.abs(d)}%</span>`}</small></div></div>`; }).join('')}</div>`
+      return `<div class="row tap" data-catd="${id}" data-src="rep"><div class="ico sm" style="--c:${catColor(c)}">${c ? c.e : '❓'}</div><div class="tx"><b>${esc(catName(c))} <span class="cnt">${t('times', { n: cnt[id] })}</span></b><div class="bar" style="margin-top:5px"><i style="width:${p}%;--c:${catColor(c)}"></i></div></div><div class="pct num">${fmt(v)}<small>${p.toFixed(1)}% ${d === null ? (pv ? '' : `<span class="muted">· ${t('new_s')}</span>`) : `<span style="color:${d > 0 ? 'var(--bad)' : 'var(--good)'}">${d > 0 ? '▲' : '▼'}${Math.abs(d)}% (${fmt(v - pv, 'UZS', true)})</span>`}</small></div></div>`; }).join('')}</div>`
       : `<div class="empty"><div class="em">📊</div><b>${t('no_exp')}</b></div>`}</div>
+  ${up.length || down.length ? `<div class="card"><div class="ch"><div><h2>🔀 ${t('changes_t')}</h2><p>${t('changes_s', { p: range(UI.per, UI.off - 1).label })}</p></div></div>
+   ${up.length ? `<div class="small" style="font-weight:700;color:var(--bad);margin-top:2px">▲ ${t('grew')}</div>${up.map(chRow).join('')}` : ''}
+   ${down.length ? `<div class="small" style="font-weight:700;color:var(--good);margin-top:10px">▼ ${t('fell')}</div>${down.map(chRow).join('')}` : ''}</div>` : ''}
   <div class="card"><div class="ch"><h2>📈 ${t('dynamics')}</h2><span class="small"><span class="pos">■</span> ${t('income')} &nbsp;<span class="neg">■</span> ${t('expense')}</span></div>${barChart(r, UI.who)}</div>
   ${S.inc > 0 ? `<div class="card rule"><div class="ch"><div><h2>⚖️ ${t('rule_t')}</h2><p>${t('rule_s')}</p></div></div>
    ${[['z', 50, 'needs'], ['h', 30, 'wants'], ['j', 20, 'savings_g']].map(([g, target, l]) => { const v = g === 'j' ? Math.max(0, S.inc - S.exp + S.byGroup.j) : S.byGroup[g]; const p = Math.round(v / S.inc * 100); const good = g === 'j' ? p >= target : p <= target;
       return `<div class="r"><span>${t(l)}</span><div class="bar"><i style="width:${Math.min(100, p)}%;--c:${good ? 'var(--good)' : 'var(--warn)'}"></i></div><b class="num">${p}% <span class="muted small">/${target}</span></b></div>`; }).join('')}</div>` : ''}
-  ${Object.keys(S.byInc).length ? `<div class="card"><div class="ch"><h2>💼 ${t('inc_src')}</h2></div>${Object.entries(S.byInc).sort((a, b) => b[1] - a[1]).map(([id, v]) => { const c = catById(id); return `<div class="row"><div class="ico sm" style="--c:var(--good)">${c ? c.e : '❓'}</div><div class="tx"><b>${esc(catName(c))}</b></div><div class="pct num pos">${fmt(v)}<small>${Math.round(v / S.inc * 100)}%</small></div></div>`; }).join('')}</div>` : ''}
+  ${Object.keys(S.byInc).length ? `<div class="card"><div class="ch"><h2>💼 ${t('inc_src')}</h2></div>${Object.entries(S.byInc).sort((a, b) => b[1] - a[1]).map(([id, v]) => { const c = catById(id); return `<div class="row tap" data-catd="${id}" data-src="rep"><div class="ico sm" style="--c:var(--good)">${c ? c.e : '❓'}</div><div class="tx"><b>${esc(catName(c))} <span class="cnt">${t('times', { n: cnt[id] })}</span></b></div><div class="pct num pos">${fmt(v)}<small>${Math.round(v / S.inc * 100)}%</small></div></div>`; }).join('')}</div>` : ''}
   ${mem.length > 1 && !UI.who && S.exp ? `<div class="card"><div class="ch"><h2>👥 ${t('by_who')}</h2></div>${Object.entries(S.byWho).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<div class="row"><div class="ico sm">👤</div><div class="tx"><b>${esc(k)}</b><div class="bar" style="margin-top:5px"><i style="width:${v / S.exp * 100}%"></i></div></div><div class="pct num">${fmt(v)}<small>${Math.round(v / S.exp * 100)}%</small></div></div>`).join('')}</div>` : ''}
   <button class="btn alt w" data-act="xlexp">📊 ${t('xl_period')}</button>`;
 }
@@ -377,22 +489,20 @@ function planRec() {
 /* ---------- Sozlamalar ---------- */
 let TG = { phase: 'idle', code: '', bot: '', token: '', timer: null, until: 0 };
 function pageSettings() {
-  const s = DB.settings;
+  const s = DB.settings, ws = W(), R = DB.rates;
   return `
   <div class="card"><div class="ch"><h2>👤 ${t('profile')}</h2></div>
    <div class="fld"><label>${t('ob_name')}</label><input id="setName" value="${esc(s.ism)}" maxlength="30"></div>
    <div class="small muted" style="margin-top:6px">${t('name_hint')}</div></div>
-  <div class="card"><div class="ch"><h2>🎨 ${t('look')}</h2></div>
-   <div style="display:grid;gap:12px"><div class="seg full">${LANGS.map(([k, n]) => `<button class="${L() === k ? 'on' : ''}" data-lang="${k}">${n}</button>`).join('')}</div>
-   <div class="seg full">${[['light', 'sun', 'th_l'], ['dark', 'moon', 'th_d'], ['auto', 'gear', 'th_a']].map(([k, i, l]) => `<button class="${s.mavzu === k ? 'on' : ''}" data-thm="${k}">${t(l)}</button>`).join('')}</div>
-   <div class="sws">${COLORS.map(([k, a, b]) => `<button class="swc ${s.rang === k ? 'on' : ''}" data-color="${k}" style="--x1:${a};--x2:${b}"></button>`).join('')}</div></div></div>
-  <div class="card"><div class="ch"><h2>💲 ${t('currency')}</h2></div>
-   <div class="fld"><label>${t('rate')}</label><input id="setRate" inputmode="decimal" value="${sp(s.kurs)}"></div></div>
   <div class="card"><div class="ch"><h2>👛 ${t('wallets')}</h2><button class="lnk" data-act="walnew">+ ${t('add_s')}</button></div>
-   ${live(DB.wallets).map(w => `<div class="row" data-wal="${w.id}" style="cursor:pointer"><div class="ico sm">${w.e}</div><div class="tx"><b>${esc(walName(w))}</b><small>${w.cur}</small></div><b class="num">${fmt(balance(w), w.cur)}</b></div>`).join('')}
-   ${live(DB.wallets).length > 1 ? `<button class="btn sm alt w" style="margin-top:8px" data-act="transfer">${ic('swap')}${t('transfer')}</button>` : ''}</div>
+   ${ws.map((w, i) => `<div class="row"><div class="ico sm">${w.e}</div><div class="tx" data-wal="${w.id}" style="cursor:pointer"><b>${esc(walName(w))}</b><small>${w.cur} · ${fmt(balance(w), w.cur)}</small></div>
+     <div class="ord"><button class="ib pl" data-wup="${w.id}" ${i === 0 ? 'disabled' : ''}>▲</button><button class="ib pl" data-wdn="${w.id}" ${i === ws.length - 1 ? 'disabled' : ''}>▼</button></div></div>`).join('')}
+   <div class="small muted" style="margin-top:6px">${t('wal_order')}</div>
+   ${ws.length > 1 ? `<button class="btn sm alt w" style="margin-top:8px" data-act="transfer">${ic('swap')}${t('transfer')}</button>` : ''}</div>
   <div class="card"><div class="ch"><h2>🏷️ ${t('categories')}</h2><button class="lnk" data-act="catnew">+ ${t('add_s')}</button></div>
    ${['x', 'd'].map(tp => `<div class="small muted" style="margin:6px 0">${t(tp === 'x' ? 'expenses' : 'incomes')}</div><div class="chips" style="flex-wrap:wrap">${live(DB.cats).filter(c => c.tur === tp).map(c => `<button class="chip" data-cat="${c.id}">${c.e} ${esc(catName(c))}</button>`).join('')}</div>`).join('')}</div>
+  <div class="card"><div class="ch"><div><h2>💱 ${t('currency')}</h2><p>${R ? t('rates_auto', { d: esc(R.date || '') }) : t('rates_none')}</p></div><button class="lnk" data-pg="rates">${t('all')} →</button></div>
+   ${R ? '' : `<div class="fld"><label>${t('rate_manual')}</label><input id="setRate" inputmode="decimal" value="${sp(s.kurs)}"></div>`}</div>
   <div class="card"><div class="ch"><div><h2>👨‍👩‍👧 ${t('family')}</h2><p>${t('family_s')}</p></div></div>
    <div class="g2"><button class="btn sm" data-act="syncsend">${ic('share')}${t('sync_send')}</button><button class="btn sm alt" data-act="syncget">${ic('import')}${t('sync_get')}</button></div>
    <div class="small muted" style="margin-top:10px">${s.sync_oxirgi ? t('sync_last', { d: s.sync_oxirgi }) : t('sync_never')}${members().length ? ' · 👥 ' + members().map(esc).join(', ') : ''}</div>
@@ -407,9 +517,43 @@ function pageSettings() {
   <div class="card"><div class="ch"><h2>💾 ${t('data')}</h2></div>
    <div class="row"><div class="tx"><b>📊 ${t('xl_all')}</b><small>${t('xl_all_s')}</small></div><button class="btn sm alt" data-act="xlall">${ic('export')}</button></div>
    <div class="row"><div class="tx"><b>🗄️ ${t('backup')}</b><small>${t('backup_s')}</small></div><button class="btn sm alt" data-act="syncsend">${ic('export')}</button></div>
-   <div class="row"><div class="tx"><b class="neg">🗑️ ${t('wipe')}</b><small>${t('wipe_s')}</small></div><button class="btn sm dng" data-act="wipe">${ic('trash')}</button></div></div>
-  <div class="small muted" style="text-align:center;padding:4px 0 10px">${t('app')} · v1.0</div>`;
+   <div class="row"><div class="tx"><b class="neg">🗑️ ${t('wipe')}</b><small>${t('wipe_s')}</small></div><button class="btn sm dng" data-act="wipe">${ic('trash')}</button></div>
+   <div class="small muted" style="margin-top:8px">🛡️ ${t('privacy')}</div></div>
+  <div class="card"><div class="ch"><h2>🎨 ${t('look')}</h2></div>
+   <div style="display:grid;gap:12px"><div class="seg full">${LANGS.map(([k, n]) => `<button class="${L() === k ? 'on' : ''}" data-lang="${k}">${n}</button>`).join('')}</div>
+   <div class="seg full">${[['light', 'th_l'], ['dark', 'th_d'], ['auto', 'th_a']].map(([k, l]) => `<button class="${s.mavzu === k ? 'on' : ''}" data-thm="${k}">${t(l)}</button>`).join('')}</div>
+   <div class="sws">${COLORS.map(([k, a, b]) => `<button class="swc ${s.rang === k ? 'on' : ''}" data-color="${k}" style="--x1:${a};--x2:${b}"></button>`).join('')}</div></div></div>
+  <div class="small muted" style="text-align:center;padding:4px 0 10px">${t('app')} · v1.1</div>`;
 }
+
+/* ---------- Bilim ---------- */
+function pageLearn() {
+  const L_ = LESSONS[L()] || LESSONS.uz, prog = DB.settings.bilim || {}, done = L_.filter(x => prog[x.id]?.ok).length;
+  return `<div class="card"><div class="ch"><div><h2>🎓 ${t('learn_prog', { a: done, b: L_.length })}</h2><p>${t('learn_sub')}</p></div></div><div class="bar" style="height:10px"><i style="width:${done / L_.length * 100}%"></i></div></div>
+  ${L_.map((x, i) => { const p = prog[x.id]; return `<button class="lc" data-lesson="${x.id}" style="--i:${i}"><div class="ico">${x.e}</div><div class="tx"><b>${esc(x.t)}</b><small>⏱ ${x.min} ${t('min')} · ${x.q.length} ${t('questions')}</small></div>${p ? `<span class="pill" style="--c:${p.ok ? 'var(--good)' : 'var(--warn)'}">${p.ok ? '✓' : ''} ${p.s}/${p.n}</span>` : ic('right')}</button>`; }).join('')}
+  <div class="card"><div class="ch"><div><h2>🏛️ ${t('official')}</h2><p>${t('official_s')}</p></div></div>
+   ${[['finlit.uz', 'https://finlit.uz/oz/', 'link_finlit'], ['financeworld.uz', 'https://financeworld.uz/', 'link_fw'], ['cbu.uz', 'https://cbu.uz/uz/arkhiv-kursov-valyut/', 'link_cbu']].map(([n, u, k]) => `<a class="row" href="${u}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit"><div class="ico sm">🔗</div><div class="tx"><b>${n}</b><small>${t(k)}</small></div>${ic('right')}</a>`).join('')}
+   <div class="tip wn" style="margin-top:10px"><span>⚠️</span><div>${t('fraud_note')}</div></div></div>`;
+}
+let QZ = null;
+function openLesson(id) {
+  const x = (LESSONS[L()] || LESSONS.uz).find(z => z.id === id); if (!x) return;
+  modal(`${mhead(x.e + ' ' + esc(x.t))}<div class="mb"><div class="lesson">${x.body}</div></div><div class="mf"><button class="btn" data-act="quizstart" data-lid="${id}">📝 ${t('quiz_start')} (${x.q.length})</button></div>`);
+}
+function drawQuiz() {
+  const x = (LESSONS[L()] || LESSONS.uz).find(z => z.id === QZ.id), n = x.q.length;
+  if (QZ.i >= n) {
+    const ok = QZ.score >= Math.ceil(n * 2 / 3); DB.settings.bilim = { ...(DB.settings.bilim || {}), [x.id]: { ok, s: QZ.score, n } }; Platform.save(DB);
+    return modal(`${mhead(x.e + ' ' + esc(x.t))}<div class="mb" style="text-align:center"><div style="font-size:56px">${ok ? '🏆' : '📖'}</div><h3 style="margin:0;font-family:var(--fd)">${t('quiz_res', { a: QZ.score, b: n })}</h3><div class="muted">${ok ? t('quiz_ok') : t('quiz_fail')}</div></div>
+     <div class="mf"><button class="btn alt" data-act="quizstart" data-lid="${x.id}">↻ ${t('again')}</button><button class="btn" data-close="1" data-act="quizclose">${t('done')}</button></div>`);
+  }
+  const q = x.q[QZ.i], picked = QZ.picked;
+  modal(`${mhead(`${t('question')} ${QZ.i + 1}/${n}`)}<div class="mb"><b style="font-size:16px;line-height:1.4">${q.q}</b>
+   <div class="qz">${q.a.map((a, j) => `<button class="${picked == null ? '' : j === q.c ? 'ok' : j === picked ? 'bad' : 'dim'}" data-qa="${j}" ${picked == null ? '' : 'disabled'}>${a}</button>`).join('')}</div>
+   ${picked != null ? `<div class="tip ${picked === q.c ? '' : 'wn'}"><span>${picked === q.c ? '✅' : '💡'}</span><div>${q.x}</div></div>` : ''}</div>
+   ${picked != null ? `<div class="mf"><button class="btn" data-act="quiznext">${QZ.i + 1 < n ? t('next') + ' →' : t('result')}</button></div>` : ''}`);
+}
+
 function tgCard() {
   const s = DB.settings; let body;
   if (s.tg_chat_id && TG.phase !== 'wait') body = `<div class="row"><div class="ico sm" style="--c:#229ED9">✈️</div><div class="tx"><b>${t('tg_linked')}: ${esc(s.tg_chat_nomi)}</b><small>@${esc(s.tg_bot)}</small></div><button class="btn sm dng" data-act="tgunlink">${t('turn_off')}</button></div>
@@ -426,8 +570,8 @@ function tgCard() {
 let M = null;
 function openTx(id, preset) {
   const x = id ? DB.tx.find(z => z.id === id) : null;
-  const mine = live(DB.wallets).filter(w => !w.egasi || w.egasi === DB.settings.ism);
-  const lastW = (live(DB.tx).filter(x => x.kim === me() && walById(x.w) && !walById(x.w).d).slice(-1)[0] || {}).w || (mine[0] || live(DB.wallets)[0] || {}).id;
+  const mine = W().filter(w => !w.egasi || w.egasi === DB.settings.ism);
+  const lastW = (live(DB.tx).filter(x => x.kim === me() && walById(x.w) && !walById(x.w).d).slice(-1)[0] || {}).w || (mine[0] || W()[0] || {}).id;
   M = x ? { ...x, amt: String(x.s), amt2: x.s2 != null ? String(x.s2) : '' } : { id: null, tur: 'x', amt: '', c: '', w: lastW, w2: '', dt: ymd(today()), n: '', kim: me(), amt2: '', ...(preset || {}) };
   drawTx();
   setTimeout(() => { const a = $('#amt'); if (a && !x) a.focus(); }, 80);
@@ -440,17 +584,17 @@ function drawTx() {
   const cross = m.tur === 'o' && w && w2 && w.cur !== w2.cur;
   modal(`${mhead(m.id ? t('edit_tx') : t('new_tx'))}<div class="mb">
    <div class="seg full">${[['x', 'expense'], ['d', 'income'], ['o', 'transfer']].map(([k, l]) => `<button class="${m.tur === k ? 'on' : ''}" data-tur="${k}">${t(l)}</button>`).join('')}</div>
-   <div class="amt ${m.tur}"><input id="amt" inputmode="decimal" placeholder="0" value="${esc(fmtInput(m.amt))}" autocomplete="off"><span>${w && w.cur === 'USD' ? '$' : t('sum')}</span></div>
+   <div class="amt ${m.tur}"><input id="amt" inputmode="decimal" placeholder="0" value="${esc(fmtInput(m.amt))}" autocomplete="off"><span>${unit(w && w.cur)}</span></div>
    ${m.tur !== 'o' ? `<div class="cg">${cats.map(c => `<button class="${m.c === c.id ? 'on' : ''}" data-pickc="${c.id}"><span>${c.e}</span>${esc(catName(c))}</button>`).join('')}<button data-act="catnew"><span>➕</span>${t('new_cat')}</button></div>` : ''}
-   <div><div class="small muted" style="margin-bottom:6px">${m.tur === 'o' ? t('from') : t('wallet')}</div><div class="chips">${live(DB.wallets).map(z => `<button class="chip ${m.w === z.id ? 'on' : ''}" data-pickw="${z.id}">${z.e} ${esc(walName(z))}</button>`).join('')}</div></div>
-   ${m.tur === 'o' ? `<div><div class="small muted" style="margin-bottom:6px">${t('to')}</div><div class="chips">${live(DB.wallets).filter(z => z.id !== m.w).map(z => `<button class="chip ${m.w2 === z.id ? 'on' : ''}" data-pickw2="${z.id}">${z.e} ${esc(walName(z))}</button>`).join('')}</div></div>
-     ${cross ? `<div class="fld"><label>${t('amt_received', { c: w2.cur === 'USD' ? '$' : t('sum') })}</label><input id="amt2" inputmode="decimal" value="${esc(fmtInput(m.amt2))}" placeholder="${esc(fmtInput(String(autoConv(m))))}"></div>` : ''}` : ''}
+   <div><div class="small muted" style="margin-bottom:6px">${m.tur === 'o' ? t('from') : t('wallet')}</div><div class="chips">${W().map(z => `<button class="chip ${m.w === z.id ? 'on' : ''}" data-pickw="${z.id}">${z.e} ${esc(walName(z))}</button>`).join('')}</div></div>
+   ${m.tur === 'o' ? `<div><div class="small muted" style="margin-bottom:6px">${t('to')}</div><div class="chips">${W().filter(z => z.id !== m.w).map(z => `<button class="chip ${m.w2 === z.id ? 'on' : ''}" data-pickw2="${z.id}">${z.e} ${esc(walName(z))}</button>`).join('')}</div></div>
+     ${cross ? `<div class="fld"><label>${t('amt_received', { c: unit(w2.cur) })}</label><input id="amt2" inputmode="decimal" value="${esc(fmtInput(m.amt2))}" placeholder="${esc(fmtInput(String(autoConv(m))))}"></div>` : ''}` : ''}
    <div class="g2"><div class="fld"><label>${t('date')}</label><input type="date" id="txdt" value="${m.dt}"></div><div class="fld"><label>${t('note')}</label><input id="txn" value="${esc(m.n)}" placeholder="${t('note_ph')}" maxlength="80"></div></div>
    ${m.id && m.kim ? `<div class="small muted">👤 ${esc(m.kim)}</div>` : ''}
   </div><div class="mf">${m.id ? `<button class="btn dng" data-del="tx:${m.id}" style="flex:0 0 auto">${ic('trash')}</button>` : ''}<button class="btn" data-act="savetx">${ic('check')}${t('save')}</button></div>`);
 }
 const fmtInput = s => { s = String(s || '').replace(/\s/g, ''); const [i, f] = s.split(/[.,]/); return (i || '').replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + (f !== undefined ? '.' + f : ''); };
-function autoConv(m) { const w = walById(m.w), w2 = walById(m.w2), a = parseAmt(m.amt); if (!w || !w2 || !rate()) return a; if (w.cur === 'UZS' && w2.cur === 'USD') return Math.round(a / rate() * 100) / 100; if (w.cur === 'USD' && w2.cur === 'UZS') return Math.round(a * rate()); return a; }
+function autoConv(m) { const w = walById(m.w), w2 = walById(m.w2), a = parseAmt(m.amt); if (!w || !w2) return a; const r1 = rateOf(w.cur), r2 = rateOf(w2.cur); if (!r1 || !r2) return a; const v = a * r1 / r2; return w2.cur === 'UZS' ? Math.round(v) : Math.round(v * 100) / 100; }
 async function saveTx() {
   readTx(); const m = M, s = parseAmt(m.amt);
   if (!(s > 0)) { $('#amt').classList.add('err'); toast(t('e_amt'), 'bd'); return; }
@@ -472,7 +616,8 @@ function formModal(title, fields, onSave, delKey) {
 let FORM = null;
 const val = id => ($('#' + id) || {}).value || '';
 const emojiPicker = (cur, key = 'fe') => `<input type="hidden" id="${key}" value="${esc(cur)}"><div class="emg">${EMOJIS.map(e => `<button class="${e === cur ? 'on' : ''}" data-emoji="${e}" data-for="${key}">${e}</button>`).join('')}</div>`;
-const walOpts = sel => live(DB.wallets).map(w => `<option value="${w.id}" ${sel === w.id ? 'selected' : ''}>${w.e} ${esc(walName(w))}</option>`).join('');
+const curOpts = sel => CURS().map(c => `<option value="${c}" ${sel === c ? 'selected' : ''}>${c} — ${esc(curName(c))}</option>`).join('');
+const walOpts = sel => W().map(w => `<option value="${w.id}" ${sel === w.id ? 'selected' : ''}>${w.e} ${esc(walName(w))}</option>`).join('');
 const catOpts = (sel, tur = 'x') => live(DB.cats).filter(c => c.tur === tur).map(c => `<option value="${c.id}" ${sel === c.id ? 'selected' : ''}>${c.e} ${esc(catName(c))}</option>`).join('');
 
 function openLimit(cid) {
@@ -501,7 +646,7 @@ function openDebt(id) {
   formModal(id ? esc(x.kim) : t('debt_new'), `
    <div class="seg full">${['berdim', 'oldim'].map(k => `<button class="${x.tur === k ? 'on' : ''}" data-dtur="${k}">${t('d_' + k)}</button>`).join('')}</div><input type="hidden" id="ft" value="${x.tur}">
    <div class="fld"><label>${t('debt_who')}</label><input id="fk" value="${esc(x.kim)}" placeholder="${t('debt_who_ph')}"></div>
-   <div class="g2"><div class="fld"><label>${t('amount')}</label><input id="fs" inputmode="decimal" value="${x.s ? esc(fmtInput(String(x.s))) : ''}"></div><div class="fld"><label>${t('currency')}</label><select id="fc"><option ${x.cur === 'UZS' ? 'selected' : ''} value="UZS">${t('sum')}</option><option ${x.cur === 'USD' ? 'selected' : ''} value="USD">$</option></select></div></div>
+   <div class="g2"><div class="fld"><label>${t('amount')}</label><input id="fs" inputmode="decimal" value="${x.s ? esc(fmtInput(String(x.s))) : ''}"></div><div class="fld"><label>${t('currency')}</label><select id="fc">${curOpts(x.cur)}</select></div></div>
    <div class="g2"><div class="fld"><label>${t('date')}</label><input type="date" id="fd" value="${esc(x.dt)}"></div><div class="fld"><label>${t('deadline')}</label><input type="date" id="fm" value="${esc(x.muddat || '')}"></div></div>
    <div class="fld"><label>${t('note')}</label><input id="fn" value="${esc(x.n || '')}"></div>
    ${id && !x.yopiq ? `<div class="card" style="box-shadow:none;background:var(--s2)"><b>${t('returned')}</b><div class="small muted">${t('left_s', { s: fmt(left, x.cur) })}</div><div class="g2" style="margin-top:8px"><div class="fld"><input id="fr" inputmode="decimal" placeholder="${esc(fmtInput(String(left)))}"></div><button class="btn sm" data-act="debtret">${t('mark_ret')}</button></div></div>` : ''}
@@ -513,7 +658,7 @@ function openDebt(id) {
   M = { debt: x };
 }
 function openRec(id) {
-  const r = id ? DB.rec.find(z => z.id === id) : { id: null, nom: '', s: 0, c: (live(DB.cats).find(c => c.k === 'utility') || {}).id, w: (live(DB.wallets)[0] || {}).id, kun: today().getDate(), faol: true, paid: [] };
+  const r = id ? DB.rec.find(z => z.id === id) : { id: null, nom: '', s: 0, c: (live(DB.cats).find(c => c.k === 'utility') || {}).id, w: (W()[0] || {}).id, kun: today().getDate(), faol: true, paid: [] };
   formModal(id ? esc(r.nom) : t('rec_new'), `<div class="fld"><label>${t('rec_name')}</label><input id="fn" value="${esc(r.nom)}" placeholder="${t('rec_ph')}"></div>
    <div class="g2"><div class="fld"><label>${t('amount')}</label><input id="fs" inputmode="decimal" value="${r.s ? esc(fmtInput(String(r.s))) : ''}"></div><div class="fld"><label>${t('pay_day')}</label><input id="fk" type="number" min="1" max="31" value="${r.kun}"></div></div>
    <div class="fld"><label>${t('category')}</label><select id="fc">${catOpts(r.c)}</select></div>
@@ -532,11 +677,11 @@ async function payRec(id) {
 function openWallet(id) {
   const w = id ? DB.wallets.find(z => z.id === id) : { id: null, nom: '', e: '👛', cur: 'UZS', start: 0 };
   formModal(id ? esc(walName(w)) : t('wal_new'), `<div class="fld"><label>${t('name')}</label><input id="fn" value="${esc(w.nom || (w.k ? t('w_' + w.k) : ''))}" placeholder="${t('wal_ph')}"></div>
-   <div class="g2"><div class="fld"><label>${t('currency')}</label><select id="fc" ${id ? 'disabled' : ''}><option value="UZS" ${w.cur === 'UZS' ? 'selected' : ''}>${t('sum')}</option><option value="USD" ${w.cur === 'USD' ? 'selected' : ''}>$</option></select></div>
+   <div class="g2"><div class="fld"><label>${t('currency')}</label><select id="fc" ${id ? 'disabled' : ''}>${curOpts(w.cur)}</select></div>
    <div class="fld"><label>${t('start_bal')}</label><input id="fs" inputmode="decimal" value="${esc(fmtInput(String(w.start || '')))}" placeholder="0"></div></div>${emojiPicker(w.e)}`,
     async () => { const nom = val('fn').trim(); if (!nom) return toast(t('e_fill'), 'bd'); const rec = { ...w, id: w.id || uid(), e: val('fe') || '👛', cur: id ? w.cur : val('fc'), start: parseAmt(val('fs')), egasi: w.egasi || me() };
       if (!w.k || nom !== t('w_' + w.k)) rec.nom = nom; upsert('wallets', rec); await persist(); closeModal(); render(); toast(t('saved')); },
-    id && live(DB.wallets).length > 1 ? 'wallets:' + id : null);
+    id && W().length > 1 ? 'wallets:' + id : null);
 }
 function openCat(id, tur) {
   const c = id ? DB.cats.find(z => z.id === id) : { id: null, nom: '', e: '📦', tur: tur || 'x', g: 'h', limit: 0 };
@@ -593,7 +738,7 @@ function weekReport(off) {
   const lines = [`💰 <b>${h(t('app'))}</b> — ${h(t('tg_week'))}`, `📅 ${r.label}`, '',
     `↓ ${h(t('income'))}: <b>${fmt(S.inc)}</b>`, `↑ ${h(t('expense'))}: <b>${fmt(S.exp)}</b>${ch === null ? '' : ` (${ch > 0 ? '▲' : '▼'}${Math.abs(ch)}%)`}`, `= ${h(t('left'))}: <b>${fmt(S.inc - S.exp, 'UZS', true)}</b>`];
   if (top.length) { lines.push('', `🍩 <b>${h(t('top_cats'))}</b>:`); top.forEach(([id, v]) => { const c = catById(id); lines.push(`${c ? c.e : ''} ${h(catName(c))} — ${fmt(v)} (${Math.round(v / S.exp * 100)}%)`); }); }
-  const A = allowance(); if (A.inc > 0) lines.push('', `📅 ${h(t('allow_t'))}: <b>${A.avail < 0 ? h(t('allow_over')) : fmt(A.perDay)}</b>`);
+  const SP = savePlan(); if (SP.inc > 0) lines.push('', `🐷 ${h(t('plan_t'))}: <b>${SP.remaining < 0 ? h(t('plan_over', { s: fmt(-SP.remaining) })) : h(t('plan_day', { s: fmt(SP.perDay) }))}</b>`);
   const over = live(DB.cats).filter(c => c.tur === 'x' && c.limit > 0 && catSpentMonth(c.id) > c.limit);
   if (over.length) lines.push('', '⚠️ ' + over.map(c => `${c.e} ${h(catName(c))}`).join(', ') + ' — ' + h(t('tg_over')));
   return lines.join('\n');
@@ -619,6 +764,44 @@ async function tgPoll() {
       Platform.tg(TG.token, 'sendMessage', { chat_id: c.id, text: '✅ ' + t('tg_ok') }).catch(() => {}); return; }
   } catch (_) {}
   TG.timer = setTimeout(tgPoll, 3000);
+}
+
+/* =================== Valyuta kurslari =================== */
+const CFG = window.APP_CONFIG || {};
+const PAGES = CFG.pages || (location.hostname.endsWith('github.io') ? location.origin + location.pathname.replace(/[^/]*$/, '') : '');
+function normRates(j) {
+  const arr = Array.isArray(j) ? j : (j && Array.isArray(j.data) ? j.data : null);
+  if (!arr || !arr.length) return null;
+  const list = arr.filter(x => x.Ccy && +x.Rate > 0).map(x => { const nom = +x.Nominal || 1;
+    return { c: x.Ccy, r: +x.Rate / nom, d: (+x.Diff || 0) / nom, n: { uz: x.CcyNm_UZ, ru: x.CcyNm_RU, en: x.CcyNm_EN } }; });
+  return list.length ? { list, date: arr[0].Date || '', fetched: Date.now() } : null;
+}
+let ratesBusy = false;
+async function fetchRates(force) {
+  if (ratesBusy) return; const R = DB.rates;
+  if (!force && R && Date.now() - R.fetched < 4 * 3600e3) return;
+  ratesBusy = true;
+  const urls = [PAGES && PAGES + 'rates.json?t=' + Date.now(), 'https://cbu.uz/uz/arkhiv-kursov-valyut/json/', 'rates.json?t=' + Date.now()].filter(Boolean);
+  for (const u of urls) {
+    try { const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 8000);
+      const r = await fetch(u, { cache: 'no-store', signal: ctl.signal }); clearTimeout(tm);
+      const n = normRates(await r.json());
+      if (n) { DB.rates = n; await Platform.save(DB); ratesBusy = false; if (!$('#modal').innerHTML && DB.settings.ism && !$('#lock').innerHTML) render(); return true; }
+    } catch (_) {}
+  }
+  ratesBusy = false; return false;
+}
+
+/* =================== Anonim foydalanuvçilar soni =================== */
+/* Faqat son: ism, telefon yoki moliyaviy maʼlumot yuborilmaydi */
+const COUNTER = 'https://countapi.mileshilliard.com/api/v1/hit/';
+function countUsage() {
+  if (!CFG.owner || !CFG.repo) return;
+  const ns = ('ob-' + CFG.owner + '-' + CFG.repo).toLowerCase().replace(/[^a-z0-9-]/g, '-');
+  const s = DB.settings, d = ymd(today()), hit = k => fetch(COUNTER + ns + '-' + k, { mode: 'cors' }).catch(() => {});
+  if (!s.sanaldi) { hit('installs'); hit('installs-' + (Platform.native ? 'android' : 'web')); s.sanaldi = d; }
+  if (s.faol_kun !== d) { hit('dau-' + d); s.faol_kun = d; }
+  Platform.save(DB);
 }
 
 /* =================== Bildirişnomalar =================== */
@@ -673,13 +856,14 @@ document.addEventListener('click', async e => {
   if (e.target.classList.contains('ovl')) return closeModal();
   if (c('[data-close]') && c('.mh')) return closeModal();
   if ((x = c('[data-lang]'))) { if (M && $('#amt')) readTx(); DB.settings.til = x.dataset.lang; await persist(); applyTheme(); if (!DB.settings.ism) return onboarding(); render(); if (M && $('#modal').innerHTML && M.amt !== undefined) drawTx(); return; }
-  if ((x = c('[data-pg]'))) { UI.page = x.dataset.pg; render(); $('#main') && ($('#main').scrollTop = 0); return; }
+  if ((x = c('[data-pg]'))) { if ($('#modal').innerHTML) closeModal(); UI.page = x.dataset.pg; render(); $('#main') && ($('#main').scrollTop = 0); return; }
   if ((x = c('[data-per]'))) { UI.per = x.dataset.per; UI.off = 0; return render(); }
   if ((x = c('[data-off]'))) { UI.off = Math.min(0, UI.off + +x.dataset.off); return render(); }
   if ((x = c('[data-hoff]'))) { UI.homeOff = Math.min(0, UI.homeOff + +x.dataset.hoff); return render(); }
   if ((x = c('[data-ttype]'))) { UI.txType = x.dataset.ttype; return render(); }
   if ((x = c('[data-whochip]'))) { UI.who = x.dataset.whochip; return render(); }
   if ((x = c('[data-plan]'))) { UI.plan = x.dataset.plan; return render(); }
+  if ((x = c('[data-pct]'))) { $('#fp').value = x.dataset.pct; x.parentElement.querySelectorAll('.chip').forEach(b => b.classList.toggle('on', b === x)); return; }
   if ((x = c('[data-thm]'))) { DB.settings.mavzu = x.dataset.thm; await persist(); applyTheme(); return render(); }
   if ((x = c('[data-color]'))) { DB.settings.rang = x.dataset.color; await persist(); applyTheme(); return render(); }
   if ((x = c('[data-sw]'))) { const k = x.dataset.sw; DB.settings[k] = !DB.settings[k]; await persist(); return render(); }
@@ -689,6 +873,7 @@ document.addEventListener('click', async e => {
   if ((x = c('[data-pickc]'))) { readTx(); M.c = x.dataset.pickc; return drawTx(); }
   if ((x = c('[data-pickw]'))) { readTx(); M.w = x.dataset.pickw; if (M.w2 === M.w) M.w2 = ''; return drawTx(); }
   if ((x = c('[data-pickw2]'))) { readTx(); M.w2 = x.dataset.pickw2; return drawTx(); }
+  if ((x = c('[data-catd]'))) return catSheet(x.dataset.catd, x.dataset.src);
   if ((x = c('[data-edit]'))) { const tx = DB.tx.find(z => z.id === x.dataset.edit); if (tx) openTx(tx.id); return; }
   if ((x = c('[data-emoji]'))) { $('#' + x.dataset.for).value = x.dataset.emoji; x.parentElement.querySelectorAll('.on').forEach(b => b.classList.remove('on')); x.classList.add('on'); return; }
   if ((x = c('[data-dtur]'))) { $('#ft').value = x.dataset.dtur; x.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === x)); return; }
@@ -700,11 +885,29 @@ document.addEventListener('click', async e => {
   if ((x = c('[data-recedit]'))) return openRec(x.dataset.recedit);
   if ((x = c('[data-recpay]'))) return payRec(x.dataset.recpay);
   if ((x = c('[data-wal]'))) return openWallet(x.dataset.wal);
+  if ((x = c('[data-wup]')) || (x = c('[data-wdn]'))) { const ws = W(), id = x.dataset.wup || x.dataset.wdn, i = ws.findIndex(w => w.id === id), j = x.dataset.wup ? i - 1 : i + 1;
+    if (j < 0 || j >= ws.length) return; [ws[i], ws[j]] = [ws[j], ws[i]]; ws.forEach((w, k) => { if (w.tartib !== k) { w.tartib = k; touch(w); } }); await persist(); return render(); }
+  if ((x = c('[data-lesson]'))) return openLesson(x.dataset.lesson);
+  if ((x = c('[data-qa]'))) { if (QZ.picked != null) return; QZ.picked = +x.dataset.qa; const q = (LESSONS[L()] || LESSONS.uz).find(z => z.id === QZ.id).q[QZ.i]; if (QZ.picked === q.c) QZ.score++; return drawQuiz(); }
+  if ((x = c('[data-rc]'))) { CONV.c = x.dataset.rc; render(); $('#main').scrollTop = 0; return; }
   if ((x = c('[data-cat]'))) return openCat(x.dataset.cat);
   if ((x = c('[data-del]'))) { const [col, id] = x.dataset.del.split(':'); if (!confirm(t('del_q'))) return; remove(col, id); await persist(); closeModal(); render(); return toast(t('deleted')); }
   if ((x = c('[data-act]'))) {
     const a = x.dataset.act;
     if (a === 'add') return openTx(null);
+    if (a === 'eye') { DB.settings.yashir = !DB.settings.yashir; await Platform.save(DB); return render(); }
+    if (a === 'walsheet') return walletSheet();
+    if (a === 'incsheet') return typeSheet('d');
+    if (a === 'expsheet') return typeSheet('x');
+    if (a === 'seeall') { UI.page = 'tx'; UI.per = 'month'; UI.off = UI.homeOff; UI.txType = x.dataset.tt; closeModal(); render(); return; }
+    if (a === 'planedit') { const p = DB.settings.tejash_foiz || 20;
+      formModal('🐷 ' + t('plan_t'), `<div class="small muted">${t('plan_help')}</div><div class="chips">${[10, 15, 20, 25, 30].map(v => `<button class="chip ${v === p ? 'on' : ''}" data-pct="${v}">${v}%</button>`).join('')}</div>
+        <div class="fld"><label>${t('plan_pct')}</label><input id="fp" type="number" min="0" max="90" value="${p}"></div>`, async () => { DB.settings.tejash_foiz = Math.max(0, Math.min(90, +val('fp') || 0)); await persist(); closeModal(); render(); toast(t('saved')); }); return; }
+    if (a === 'ratesref') { toast(t('loading')); const ok = await fetchRates(true); if (!ok) toast(t('rates_fail'), 'bd'); else toast(t('saved')); return; }
+    if (a === 'cvswap') { CONV.rev = !CONV.rev; return render(); }
+    if (a === 'quizstart') { QZ = { id: x.dataset.lid, i: 0, score: 0, picked: null }; return drawQuiz(); }
+    if (a === 'quiznext') { QZ.i++; QZ.picked = null; return drawQuiz(); }
+    if (a === 'quizclose') { closeModal(); return render(); }
     if (a === 'transfer') return openTx(null, { tur: 'o' });
     if (a === 'theme') { const cur = document.documentElement.dataset.theme; DB.settings.mavzu = cur === 'dark' ? 'light' : 'dark'; await persist(); applyTheme(); return render(); }
     if (a === 'savetx') return saveTx();
@@ -716,7 +919,7 @@ document.addEventListener('click', async e => {
     if (a === 'recnew') return openRec(null);
     if (a === 'debtret') { const d = M.debt, v = parseAmt(val('fr')) || debtLeft(d); d.qaytdi = [...(d.qaytdi || []), { dt: ymd(today()), s: Math.min(v, debtLeft(d)) }]; d.yopiq = debtLeft(d) <= 0; upsert('debts', d); await persist(); closeModal(); render(); return toast(d.yopiq ? t('debt_closed') : t('saved')); }
     if (a === 'obdone') { const n = ($('#obName').value || '').trim(); if (!n) { $('#obName').classList.add('err'); return $('#obName').focus(); }
-      DB.settings.ism = n; DB.settings.kurs = parseAmt($('#obRate').value) || DB.settings.kurs;
+      DB.settings.ism = n; if ($('#obRate')) DB.settings.kurs = parseAmt($('#obRate').value) || DB.settings.kurs;
       document.querySelectorAll('[data-ob]').forEach(i => { const w = walById(i.dataset.ob); if (w) { w.start = parseAmt(i.value); w.egasi = n; touch(w); } });
       await persist(); return render(); }
     if (a === 'syncsend') return syncSend();
@@ -736,6 +939,7 @@ document.addEventListener('click', async e => {
 });
 document.addEventListener('input', e => {
   const el = e.target;
+  if (el.id === 'rq' || el.id === 'cva') { if (el.id === 'rq') CONV.q = el.value; else CONV.a = el.value.replace(/[^\d.,]/g, ''); const pos = el.selectionStart, id = el.id; render(); const q = $('#' + id); if (q) { q.focus(); try { q.setSelectionRange(pos, pos); } catch (_) {} } return; }
   if (el.id === 'q') { UI.q = el.value; const pos = el.selectionStart; render(); const q = $('#q'); q.focus(); q.setSelectionRange(pos, pos); return; }
   if (el.id === 'amt' || el.id === 'amt2' || el.getAttribute('inputmode') === 'decimal') {
     const before = el.value, pos = el.selectionStart, digitsBefore = before.slice(0, pos).replace(/\s/g, '').length;
@@ -747,6 +951,7 @@ document.addEventListener('input', e => {
 document.addEventListener('change', async e => {
   const el = e.target;
   if (el.id === 'who') { UI.who = el.value; return render(); }
+  if (el.id === 'cvc') { CONV.c = el.value; return render(); }
   if (el.id === 'setName' && el.value.trim()) { DB.settings.ism = el.value.trim(); await persist(); return toast(t('saved')); }
   if (el.id === 'setRate') { const v = parseAmt(el.value); if (v > 0) { DB.settings.kurs = v; await persist(); render(); toast(t('saved')); } return; }
   if (el.id === 'ntime' && el.value) { DB.settings.eslat_vaqt = el.value; await persist(); return toast(t('saved')); }
@@ -755,7 +960,7 @@ document.addEventListener('change', async e => {
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#modal').innerHTML) closeModal(); if (e.key === 'Enter' && e.target.id === 'amt') saveTx(); });
 
 /* =================== Işga tuşiriş =================== */
-function afterUnlock() { render(); scheduleNotifications(); setTimeout(tgWeekly, 1500); }
+function afterUnlock() { render(); scheduleNotifications(); setTimeout(tgWeekly, 1500); setTimeout(() => fetchRates(false), 300); setTimeout(countUsage, 2500); }
 async function boot() {
   DB = await Platform.load();
   if (!DB || !DB.settings) DB = newDB();
