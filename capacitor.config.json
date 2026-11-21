@@ -1,0 +1,10 @@
+{
+  "appId": "uz.oilabyudjeti.app",
+  "appName": "Oila byudjeti",
+  "webDir": "www",
+  "plugins": {
+    "LocalNotifications": {
+      "iconColor": "#12A37A"
+    }
+  }
+}
