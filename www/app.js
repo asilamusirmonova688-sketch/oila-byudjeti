@@ -26,6 +26,8 @@ const IC = {
   left: '<path d="M15 18l-6-6 6-6"/>', right: '<path d="M9 18l6-6-6-6"/>',
   check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>', trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
   edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/>', send: '<path d="M21 3 3 10.5l7 2.5 2.5 7z"/><path d="M10 13l11-10"/>',
+  famx: '<circle cx="8" cy="8" r="3"/><path d="M2.5 19c0-3 2.5-5.5 5.5-5.5s5.5 2.5 5.5 5.5"/><path d="M15 6h6M18 3l3 3-3 3"/><path d="M21 15h-6M18 12l-3 3 3 3"/>',
+  globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z"/>',
   share: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/>',
   import: '<path d="M12 3v12M7 10l5 5 5-5M5 15v5h14v-5"/>', export: '<path d="M12 15V3M7 8l5-5 5 5M5 15v5h14v-5"/>',
   lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
@@ -147,6 +149,16 @@ function stats(r, who) {
 }
 const monthRange = (off = 0) => range('month', off);
 function catSpentMonth(cid) { const r = monthRange(0); return live(DB.tx).filter(x => x.tur === 'x' && x.c === cid && inR(x, r)).reduce((s, x) => s + txUZS(x), 0); }
+const walOwner = w => (w && (w.egasi || DB.settings.ism)) || '';
+function famFlow(r, who) {
+  const F = { got: 0, gave: 0, n: 0, list: [] };
+  for (const x of live(DB.tx)) { if (x.tur !== 'o' || !inR(x, r)) continue;
+    const o1 = walOwner(walById(x.w)), o2 = walOwner(walById(x.w2)); if (!o1 || !o2 || o1 === o2) continue;
+    const v = txUZS(x);
+    if (o2 === who) { F.got += v; F.n++; F.list.push({ ...x, dir: 1, who: o1, v }); }
+    else if (o1 === who) { F.gave += v; F.n++; F.list.push({ ...x, dir: -1, who: o2, v }); } }
+  F.list.sort((a, b) => b.dt.localeCompare(a.dt)); F.list = F.list.slice(0, 20); return F;
+}
 const members = () => [...new Set(live(DB.tx).map(x => x.kim).filter(Boolean))];
 
 /* doimiy tölovlar */
@@ -202,7 +214,7 @@ const perSeg = () => `<div class="seg full">${['week', 'month', 'quarter', 'year
 const SUB = ['rates', 'learn', 'settings', 'feedback'];
 const FEEDBACK_TG = 'bsp3221';
 let FB = { type: 'idea', t: '', img: null };
-const APPV = '1.4';
+const APPV = '1.5';
 function devInfo() { const u = navigator.userAgent, a = u.match(/Android [\d.]+/), m = u.match(/;\s*([^;)]+)\s+Build/), i = u.match(/iPhone OS [\d_]+/);
   return [a ? a[0] : i ? i[0].replace(/_/g, '.') : (u.match(/Windows NT [\d.]+|Mac OS X [\d_]+/) || ['?'])[0], m ? m[1] : '', Platform.native ? 'APK' : 'Web'].filter(Boolean).join(' · '); }
 function pageFeedback() {
@@ -231,7 +243,9 @@ function render() {
   const th = document.documentElement.dataset.theme, sub = SUB.includes(UI.page), shp = UI.page === 'shop', navOn = sub ? 'more' : shp ? 'home' : UI.page;
   $('#root').innerHTML = `<div class="app"><main class="main" id="main">
    <header class="top">${sub ? `<button class="ib" data-pg="more">${ic('left')}</button>` : shp ? `<button class="ib" data-act="shopback">${ic('left')}</button>` : ''}<h1>${t('pg_' + UI.page)}</h1>${shp ? '' : shopHeaderBtn()}
-    <div class="seg">${LANGS.map(([k]) => `<button class="${L() === k ? 'on' : ''}" data-lang="${k}">${k.toUpperCase()}</button>`).join('')}</div>
+    ${sub || shp ? "" : `<button class="ib famb" data-act="famsheet" aria-label="${t('fam_share')}">${ic('famx')}${syncDue() ? '<i class="rdot"></i>' : ''}</button>`}
+    <div class="langw"><button class="langb" data-act="langmenu" aria-label="Til">${ic('globe')}${L().toUpperCase()}<span>▾</span></button>
+     ${UI.langOpen ? `<div class="langpop">${LANGS.map(([k, n]) => `<button class="${L() === k ? 'on' : ''}" data-lang="${k}"><b>${k.toUpperCase()}</b>${n}${L() === k ? `<i>${ic('check')}</i>` : ''}</button>`).join('')}</div>` : ''}</div>
     <button class="ib" data-act="theme">${ic(th === 'dark' ? 'sun' : 'moon')}</button></header>
    <div class="page">${pages[UI.page]()}</div></main>
    ${['home', 'tx', 'report'].includes(UI.page) ? `<button class="fab" data-act="add" aria-label="${t('add')}">${ic('plus')}</button>` : ''}
@@ -239,11 +253,20 @@ function render() {
 }
 
 /* ---------- Boşqa (menyu) ---------- */
+function famSheet() {
+  modal(`${mhead('👨‍👩‍👧 ' + t('fam_share'))}<div class="mb">
+   <p class="small muted" style="margin:0">${t('fam_share_s')}</p>
+   <button class="btn w" data-act="syncsend">${ic('share')}${t('sync_send')}</button>
+   <button class="btn alt w" data-act="syncget">${ic('import')}${t('sync_get')}</button>
+   <div class="tip"><span>💡</span><div>${Platform.native ? t('fam_tip_apk') : t('fam_tip_web', { b: t('sync_get') })}</div></div>
+   <div class="small muted">${DB.settings.sync_oxirgi ? t('sync_last', { d: DB.settings.sync_oxirgi }) : t('sync_never')}</div></div>`);
+}
 function pageMore() {
   const L_ = LESSONS[L()] || LESSONS.uz, done = L_.filter(x => (DB.settings.bilim || {})[x.id]?.ok).length;
   const usd = rateItem('USD');
   const item = (pg, e, ttl, sub) => `<button class="mi" data-pg="${pg}"><div class="ico">${e}</div><div class="tx"><b>${ttl}</b><small>${sub}</small></div>${ic('right')}</button>`;
   return `<div class="card" style="padding:6px 12px">
+   <button class="mi" data-act="famsheet"><div class="ico">👨‍👩‍👧</div><div class="tx"><b>${t('fam_share')}</b><small>${DB.settings.sync_oxirgi ? t('sync_last', { d: DB.settings.sync_oxirgi }) : t('sync_never')}</small></div>${ic('right')}</button>
    ${item('rates', '💱', t('pg_rates'), usd ? `1 $ = ${fmt(usd.r)}${DB.rates.date ? ' · ' + DB.rates.date : ''}` : t('rates_sub'))}
    ${item('learn', '📚', t('pg_learn'), t('learn_prog', { a: done, b: L_.length }))}
    ${item('settings', '⚙️', t('pg_settings'), t('settings_sub'))}
@@ -332,6 +355,7 @@ function homeAlerts() {
   }
   for (const x of recUnpaidThisMonth()) { const due = recDue(x, d), n = Math.round((due - d) / 864e5); if (n <= 3) alerts.push([n < 0 ? 'var(--bad)' : 'var(--warn)', `🔁 ${t(n < 0 ? 'al_rec_late' : n === 0 ? 'al_rec_today' : 'al_rec_soon', { n: esc(x.nom), d: n })} — ${money(x.s, (walById(x.w) || {}).cur)}`, `data-recedit="${x.id}"`]); }
   for (const x of live(DB.debts).filter(x => !x.yopiq && x.muddat)) { const n = Math.round((pd(x.muddat) - d) / 864e5); if (n <= 3) alerts.push([n < 0 ? 'var(--bad)' : 'var(--warn)', `🤝 ${t(x.tur === 'berdim' ? 'al_debt_in' : 'al_debt_out', { k: esc(x.kim) })}: ${money(debtLeft(x), x.cur)} — ${n < 0 ? t('overdue') : fmtDay(pd(x.muddat))}`, `data-debt="${x.id}"`]); }
+  if (syncDue()) alerts.push(['var(--acc)', `👨‍👩‍👧 ${t('sync_due', { d: DB.settings.sync_ts ? Math.floor((Date.now() - DB.settings.sync_ts) / 864e5) : 7 })}`, 'data-act="syncsend"']);
   return alerts;
 }
 function rateChips() {
@@ -493,6 +517,9 @@ function pageReport() {
   ${up.length || down.length ? `<div class="card"><div class="ch"><div><h2>🔀 ${t('changes_t')}</h2><p>${t('changes_s', { p: range(UI.per, UI.off - 1).label })}</p></div></div>
    ${up.length ? `<div class="small" style="font-weight:700;color:var(--bad);margin-top:2px">▲ ${t('grew')}</div>${up.map(chRow).join('')}` : ''}
    ${down.length ? `<div class="small" style="font-weight:700;color:var(--good);margin-top:10px">▼ ${t('fell')}</div>${down.map(chRow).join('')}` : ''}</div>` : ''}
+  ${UI.who ? (() => { const F = famFlow(r, UI.who); return F.n ? `<div class="card"><div class="ch"><div><h2>👨‍👩‍👧 ${t('fam_flow')}</h2><p>${t('fam_flow_s')}</p></div></div>
+   <div class="g2"><div class="kp"><small>${t('fam_got')}</small><b class="num pos">+${money(F.got)}</b></div><div class="kp"><small>${t('fam_gave')}</small><b class="num neg">−${money(F.gave)}</b></div></div>
+   ${F.list.map(x => `<div class="row" data-txv="${x.id}" style="cursor:pointer"><div class="ico sm">${x.dir > 0 ? '⬇️' : '⬆️'}</div><div class="tx"><b>${esc(x.dir > 0 ? t('fam_from', { n: x.who }) : t('fam_to', { n: x.who }))}</b><small>${fmtDay(pd(x.dt))}${x.n ? ' · ' + esc(x.n) : ''}</small></div><b class="num ${x.dir > 0 ? 'pos' : 'neg'}">${x.dir > 0 ? '+' : '−'}${money(x.v)}</b></div>`).join('')}</div>` : ''; })() : ''}
   <div class="card"><div class="ch"><h2>📈 ${t('dynamics')}</h2><span class="small"><span class="pos">■</span> ${t('income')} &nbsp;<span class="neg">■</span> ${t('expense')}</span></div>${barChart(r, UI.who)}</div>
   ${S.inc > 0 ? `<div class="card rule"><div class="ch"><div><h2>⚖️ ${t('rule_t')}</h2><p>${t('rule_s')}</p></div></div>
    ${[['z', 50, 'needs'], ['h', 30, 'wants'], ['j', 20, 'savings_g']].map(([g, target, l]) => { const v = g === 'j' ? Math.max(0, S.inc - S.exp + S.byGroup.j) : S.byGroup[g]; const p = Math.round(v / S.inc * 100); const good = g === 'j' ? p >= target : p <= target;
@@ -872,14 +899,27 @@ async function syncSend() {
   const data = { format: 'oila-byudjeti', v: 1, kim: me(), at: new Date().toISOString() };
   COLS.forEach(c => data[c] = DB[c]);
   const ok = await Platform.saveFile(`oila_byudjeti_${me().replace(/[^\p{L}\p{N}]+/gu, '_')}_${ymd(today())}.json`, 'application/json', JSON.stringify(data), t('app'));
-  if (ok) { DB.settings.sync_oxirgi = `${fmtDay(today())}`; await persist(); render(); }
+  if (ok) { DB.settings.sync_oxirgi = `${fmtDay(today())}`; DB.settings.sync_ts = Date.now(); await persist(); render(); }
 }
 async function syncGet() {
   const f = await Platform.pickFile('.json,application/json'); if (!f) return;
   try { const d = JSON.parse(await f.text()); if (d.format !== 'oila-byudjeti') throw 0;
-    const n = merge(d); DB.settings.sync_oxirgi = fmtDay(today()); await persist(); render(); toast(t('sync_ok', { n, k: d.kim || '?' }));
+    const n = merge(d); DB.settings.sync_oxirgi = fmtDay(today()); DB.settings.sync_ts = Date.now(); await persist(); render(); toast(t('sync_ok', { n, k: d.kim || '?' }));
   } catch (_) { toast(t('bad_file'), 'bd'); }
 }
+
+/* Telegramdan kelgan faylni bosganda ilova oçiladi va maʼlumot qöşiladi (Android) */
+async function importFromText(txt) {
+  try { const d = JSON.parse(txt); if (d.format !== 'oila-byudjeti') throw 0;
+    if (!confirm(t('sync_open_q', { k: d.kim || '?' }))) return;
+    const n = merge(d); DB.settings.sync_oxirgi = fmtDay(today()); DB.settings.sync_ts = Date.now(); await persist(); render(); toast(t('sync_ok', { n, k: d.kim || '?' }));
+  } catch (_) { toast(t('bad_file'), 'bd'); }
+}
+let pendingOpen = null;
+function handleOpenUrl(url) { if (!url || !/^(content|file):/.test(url)) return; pendingOpen = url; if (DB && DB.settings.ism && !$('#lock').innerHTML) runPendingOpen(); }
+async function runPendingOpen() { const u = pendingOpen; pendingOpen = null; if (!u) return; const txt = await Platform.readUrl(u); if (txt) importFromText(txt); else toast(t('bad_file'), 'bd'); }
+function syncDue() { const s = DB.settings; if (!(+s.oila_soni > 1 || members().length > 1)) return false;
+  const first = live(DB.tx).map(x => x.u || 0).filter(Boolean).sort((a, b) => a - b)[0]; const base = s.sync_ts || first; return !!base && Date.now() - base > 7 * 864e5; }
 
 /* =================== Excel =================== */
 async function excelExport(r) {
@@ -1082,7 +1122,8 @@ document.addEventListener('click', async e => {
   if ((x = c('[data-k]'))) return pinKey(x.dataset.k);
   if (e.target.classList.contains('ovl')) return closeModal();
   if (c('[data-close]') && c('.mh')) return closeModal();
-  if ((x = c('[data-lang]'))) { if (M && $('#amt')) readTx(); DB.settings.til = x.dataset.lang; await persist(); applyTheme(); if (!DB.settings.ism) return onboarding(); render(); if (M && $('#modal').innerHTML && M.amt !== undefined) drawTx(); return; }
+  if (UI.langOpen && !c('.langpop') && !c('[data-act=langmenu]')) { UI.langOpen = false; render(); }
+  if ((x = c('[data-lang]'))) { UI.langOpen = false; if (M && $('#amt')) readTx(); DB.settings.til = x.dataset.lang; await persist(); applyTheme(); if (!DB.settings.ism) return onboarding(); render(); if (M && $('#modal').innerHTML && M.amt !== undefined) drawTx(); return; }
   if ((x = c('[data-pg]'))) { if ($('#modal').innerHTML) closeModal(); UI.page = x.dataset.pg; render(); $('#main') && ($('#main').scrollTop = 0); return; }
   if ((x = c('[data-per]'))) { UI.per = x.dataset.per; UI.off = 0; return render(); }
   if ((x = c('[data-off]'))) { UI.off = Math.min(0, UI.off + +x.dataset.off); return render(); }
@@ -1175,7 +1216,9 @@ document.addEventListener('click', async e => {
       DB.settings.ism = n; if ($('#obRate')) DB.settings.kurs = parseAmt($('#obRate').value) || DB.settings.kurs;
       document.querySelectorAll('[data-ob]').forEach(i => { const w = walById(i.dataset.ob); if (w) { w.start = parseAmt(i.value); w.egasi = n; touch(w); } });
       await persist(); return render(); }
-    if (a === 'syncsend') return syncSend();
+    if (a === 'famsheet') return famSheet();
+    if (a === 'langmenu') { UI.langOpen = !UI.langOpen; return render(); }
+    if (a === 'syncsend') { closeModal(); return syncSend(); }
     if (a === 'syncget') return syncGet();
     if (a === 'xlexp') return excelExport(range(UI.per, UI.off));
     if (a === 'xlall') return excelExport(null);
@@ -1240,7 +1283,7 @@ function onBack() {
 }
 
 /* =================== Işga tuşiriş =================== */
-function afterUnlock() { render(); scheduleNotifications(); setTimeout(tgWeekly, 1500); setTimeout(() => fetchRates(false), 300); setTimeout(countUsage, 2500); }
+function afterUnlock() { render(); scheduleNotifications(); setTimeout(tgWeekly, 1500); setTimeout(() => fetchRates(false), 300); setTimeout(countUsage, 2500); if (pendingOpen && DB.settings.ism) setTimeout(runPendingOpen, 600); }
 async function boot() {
   DB = await Platform.load();
   if (!DB || !DB.settings) DB = newDB();
@@ -1248,6 +1291,7 @@ async function boot() {
   def.cats.forEach(c => { if (!DB.cats.some(z => z.id === c.id)) DB.cats.push(c); });
   applyTheme();
   Platform.onBack(onBack);
+  Platform.onOpenUrl(handleOpenUrl);
   Platform.bio.available().then(r => { BIO_OK = !!r; });
   if (DB.settings.pin) { render(); showLock('unlock'); } else { afterUnlock(); if (DB.settings.ism && DB.settings.splash !== false) splash(); }
   if (!Platform.native && 'serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});

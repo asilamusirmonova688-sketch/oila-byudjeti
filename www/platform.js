@@ -119,6 +119,18 @@ const Platform = (() => {
     return false;
   }
 
+
+  /* boşqa ilovadan (Telegram) fayl bilan oçilganda */
+  function onOpenUrl(fn) {
+    if (!(native && P.App)) return;
+    P.App.addListener('appUrlOpen', e => fn(e && e.url));
+    P.App.getLaunchUrl().then(r => { if (r && r.url) fn(r.url); }).catch(() => {});
+  }
+  async function readUrl(url) {
+    try { if (native && P.Filesystem) { const r = await P.Filesystem.readFile({ path: url, encoding: 'utf8' }); return r.data; } } catch (_) {}
+    try { const r = await fetch(url); return await r.text(); } catch (_) { return null; }
+  }
+
   /* ---------- PIN uçun xeş ---------- */
   async function sha256(s) {
     if (crypto && crypto.subtle) {
@@ -128,5 +140,5 @@ const Platform = (() => {
     let h = 5381; for (const c of s) h = ((h << 5) + h + c.charCodeAt(0)) | 0; return 'x' + (h >>> 0).toString(16);
   }
 
-  return { native, load, save, pickFile, saveFile, notify, tg, sha256, onBack, exit, vibrate, bio, openUrl, copy, shareText };
+  return { native, load, save, pickFile, saveFile, notify, tg, sha256, onBack, exit, vibrate, bio, openUrl, copy, shareText, onOpenUrl, readUrl };
 })();

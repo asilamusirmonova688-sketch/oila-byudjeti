@@ -314,3 +314,27 @@ Object.assign(I18N.en, {
 Object.assign(I18N.uz, { delete: 'Öçiriş', goal_del_q: 'Maqsad öçirilsinmi? Unga qöşilgan pullar tarixda (Jamğarma xarajati sifatida) qoladi.', bsk_t: 'Savatça diqqatni tortsin', bsk_s: 'Ilova oçilganda 5 soniya öçib-yonadi (olinmagan narsa bölsa)' });
 Object.assign(I18N.ru, { delete: 'Удалить', goal_del_q: 'Удалить цель? Внесённые деньги останутся в истории (как расход «Накопления»).', bsk_t: 'Мигающая корзина', bsk_s: 'При запуске 5 секунд мигает (если есть некупленное)' });
 Object.assign(I18N.en, { delete: 'Delete', goal_del_q: 'Delete the goal? Money added to it stays in history (as a Savings expense).', bsk_t: 'Basket attracts attention', bsk_s: 'Blinks for 5 seconds on start (if items are not bought)' });
+Object.assign(I18N.uz, {
+  fam_flow: 'Oila ichidagi ötkazmalar', fam_flow_s: 'Oila hisobotida daromad emas — faqat şu kişi uçun', fam_got: 'Oiladan olindi', fam_gave: 'Oilaga berildi', fam_from: '{n} dan olindi', fam_to: '{n} ga berildi',
+  sync_due: 'Oila bilan {d} kundan beri maʼlumot almaşilmadi — yuboring', sync_open_q: '{k} dan maʼlumot keldi. Byudjetingizga qöşilsinmi?',
+  fam_share: 'Oila bilan almaşiş', fam_share_s: 'Yuborilganda oila aʼzosi sizning yozuvlaringizni, siz esa uning yozuvlarini körasiz. Takrorlanganlari qöşilmaydi.',
+  fam_tip_apk: 'Oila aʼzosi Telegramda kelgan faylni bossa kifoya — «Oila byudjeti» bilan oçiladi va maʼlumot özi qöşiladi.', fam_tip_web: 'iPhoneda: faylni Telegramdan saqlang, keyin şu yerda «{b}» ni bosing.',
+  shop_clear: 'Tarixni tozalaş', shop_del_q: '«{n}» röyxati öçirilsinmi?', shop_del_q_tx: '«{n}» röyxati va undan yozilgan {s} xarajat öçiriladi (hisobotdan ham). Davom etilsinmi?',
+  shop_clear_q: '{n} ta ötgan röyxat va ulardan yozilgan {s} xarajat öçiriladi (hisobotdan ham). Davom etilsinmi?',
+});
+Object.assign(I18N.ru, {
+  fam_flow: 'Переводы внутри семьи', fam_flow_s: 'В семейном отчёте это не доход — только для этого человека', fam_got: 'Получено от семьи', fam_gave: 'Отдано семье', fam_from: 'От: {n}', fam_to: 'Кому: {n}',
+  sync_due: 'Обмена с семьёй не было {d} дн. — отправьте данные', sync_open_q: 'Пришли данные от {k}. Добавить в ваш бюджет?',
+  fam_share: 'Обмен с семьёй', fam_share_s: 'После обмена член семьи видит ваши записи, а вы — его. Повторы не добавляются.',
+  fam_tip_apk: 'Члену семьи достаточно нажать на файл в Telegram — он откроется в «Семейном бюджете» и данные добавятся.', fam_tip_web: 'На iPhone: сохраните файл из Telegram, затем нажмите «{b}».',
+  shop_clear: 'Очистить историю', shop_del_q: 'Удалить список «{n}»?', shop_del_q_tx: 'Список «{n}» и записанные по нему расходы на {s} будут удалены (и из отчёта). Продолжить?',
+  shop_clear_q: '{n} прошлых списков и расходы по ним на {s} будут удалены (и из отчёта). Продолжить?',
+});
+Object.assign(I18N.en, {
+  fam_flow: 'Transfers within the family', fam_flow_s: 'Not income in the family report — only for this person', fam_got: 'Received from family', fam_gave: 'Given to family', fam_from: 'From {n}', fam_to: 'To {n}',
+  sync_due: 'No exchange with the family for {d} days — send your data', sync_open_q: 'Data arrived from {k}. Add it to your budget?',
+  fam_share: 'Family exchange', fam_share_s: 'After an exchange, family members see your records and you see theirs. Duplicates are not added.',
+  fam_tip_apk: 'Family members just tap the file in Telegram — it opens in Family Budget and the data is added.', fam_tip_web: 'On iPhone: save the file from Telegram, then tap “{b}” here.',
+  shop_clear: 'Clear history', shop_del_q: 'Delete the list “{n}”?', shop_del_q_tx: 'The list “{n}” and its recorded expenses of {s} will be deleted (from reports too). Continue?',
+  shop_clear_q: '{n} past lists and their expenses of {s} will be deleted (from reports too). Continue?',
+});

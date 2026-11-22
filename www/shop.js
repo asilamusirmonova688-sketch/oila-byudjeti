@@ -14,26 +14,50 @@ const lsReal = l => l.items.filter(i => i.olindi).reduce((s, i) => s + itReal(i)
 const catIdByKey = k => (live(DB.cats).find(c => c.k === k && c.tur === 'x') || {}).id;
 const foodCat = () => catIdByKey('food') || (live(DB.cats).find(c => c.tur === 'x') || {}).id;
 const unitName = b => t('u_' + b);
-const qtyTxt = (q, b) => `${String(+(+q).toFixed(3)).replace('.', ',')} ${unitName(b)}`;
+const unitOf = (b, nom) => nom && isCyr(nom) && L() !== 'ru' ? (UNIT_CYR[b] || b) : unitName(b);
+const qtyTxt = (q, b, nom) => `${String(+(+q).toFixed(3)).replace('.', ',')} ${unitOf(b, nom)}`;
 const shopCats = () => live(DB.cats).filter(c => c.tur === 'x' && c.g !== 'j' && c.k !== 'credit');
 const BASKET = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 9.5h19l-1.7 9.1a2 2 0 0 1-2 1.6H6.2a2 2 0 0 1-2-1.6z"/><path d="M7.5 9.5 11 3.5M16.5 9.5 13 3.5"/><path d="M9 13.5v3.5M12 13.5v3.5M15 13.5v3.5"/></svg>';
 
 /* qidiruvda: ö→o, ş→sh, ç→ch, ğ→g, apostroflar olib taşlanadi */
-const normP = v => String(v).toLowerCase().replace(/ö/g, 'o').replace(/ğ/g, 'g').replace(/ş/g, 'sh').replace(/ç/g, 'ch').replace(/[ʼ'‘’`]/g, '').replace(/ё/g, 'е');
+/* kirill ↔ lotin */
+const isCyr = v => /[а-яёўғқҳ]/i.test(String(v));
+const C2L = { а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ё: 'yo', ж: 'j', з: 'z', и: 'i', й: 'y', к: 'k', л: 'l', м: 'm', н: 'n', о: 'o', п: 'p', р: 'r', с: 's', т: 't', у: 'u', ф: 'f', х: 'x', ц: 'ts', ч: 'ch', ш: 'sh', щ: 'sh', ъ: '', ы: 'i', ь: '', э: 'e', ю: 'yu', я: 'ya', ў: 'o', қ: 'q', ғ: 'g', ҳ: 'h' };
+const cyr2lat = v => String(v).toLowerCase().replace(/[а-яёўғқҳ]/g, ch => C2L[ch] ?? ch);
+function lat2cyr(v) {
+  let s = String(v).replace(/[ʼ‘’`]/g, "'"), out = '';
+  const M = [['sh', 'ш'], ['ş', 'ш'], ['ch', 'ч'], ['ç', 'ч'], ["o'", 'ў'], ['ö', 'ў'], ["g'", 'ғ'], ['ğ', 'ғ'], ['yo', 'ё'], ['yu', 'ю'], ['ya', 'я'], ['ye', 'е'], ['ts', 'ц'],
+    ['a', 'а'], ['b', 'б'], ['d', 'д'], ['e', 'е'], ['f', 'ф'], ['g', 'г'], ['h', 'ҳ'], ['i', 'и'], ['j', 'ж'], ['k', 'к'], ['l', 'л'], ['m', 'м'], ['n', 'н'], ['o', 'о'], ['p', 'п'], ['q', 'қ'], ['r', 'р'], ['s', 'с'], ['t', 'т'], ['u', 'у'], ['v', 'в'], ['x', 'х'], ['y', 'й'], ['z', 'з'], ['c', 'с'], ["'", 'ъ']];
+  for (let i = 0; i < s.length;) {
+    let hit = null; const low = s.slice(i, i + 2).toLowerCase();
+    for (const [a, b] of M) if (low.startsWith(a)) { hit = [a, b]; break; }
+    if (!hit) { out += s[i]; i++; continue; }
+    let ch = hit[1]; const start = i === 0 || /[\s(-]/.test(s[i - 1]);
+    if (hit[0] === 'e' && start) ch = 'э';
+    if (s[i] !== s[i].toLowerCase()) ch = ch.toUpperCase();
+    out += ch; i += hit[0].length;
+  }
+  return out;
+}
+const UNIT_CYR = { kg: 'кг', dona: 'дона', l: 'литр', bog: 'боғ', paket: 'пакет', quti: 'қути' };
+const normP = v => cyr2lat(v).replace(/ö/g, 'o').replace(/ğ/g, 'g').replace(/ş/g, 'sh').replace(/ç/g, 'ch').replace(/[ʼ'‘’`]/g, '');
 function shopMem() { return DB.settings.bozor || (DB.settings.bozor = {}); }
 function remember(i, cid) {
   const m = shopMem(), k = i.nom.trim().toLowerCase(); if (!k) return;
   m[k] = { n: i.nom.trim(), b: i.b, p: +(i.fnarx ?? i.narx) || (m[k] || {}).p || 0, c: cid || i.c || '', u: now() };
 }
 function prodSuggest(q) {
-  q = normP(q.trim()); if (!q) return [];
+  const cyr = isCyr(q); q = normP(q.trim()); if (!q) return [];
   const li = { uz: 0, ru: 1, en: 2 }[L()] ?? 0, out = [], seen = new Set(), m = shopMem();
+  const dn = p => cyr && L() !== 'ru' ? lat2cyr(p[0]) : p[li];
   const add = (n, b, p, ck, cid, own) => { const k = n.toLowerCase(); if (seen.has(k)) return; seen.add(k); out.push({ n, b, p, ck, cid, own }); };
-  const score = n => { n = normP(n); return n.startsWith(q) ? 0 : n.split(/[\s(]+/).some(w => w.startsWith(q)) ? 1 : n.includes(q) ? 2 : 9; };
+  const loose = v => v.replace(/q/g, 'k').replace(/h/g, 'x').replace(/o/g, 'u'), lq = loose(q);
+  const sc = (n, qq) => n.startsWith(qq) ? 0 : n.split(/[\s(]+/).some(w => w.startsWith(qq)) ? 1 : n.includes(qq) ? 2 : 9;
+  const score = n => { n = normP(n); const a = sc(n, q); return a < 9 ? a : Math.min(9, sc(loose(n), lq) + 0.7); };
   const own = Object.values(m).map(x => [score(x.n), x]).filter(([s]) => s < 9).sort((a, b) => a[0] - b[0] || (b[1].u || 0) - (a[1].u || 0));
   own.forEach(([, x]) => add(x.n, x.b, x.p, '', x.c, true));
   const base = PRODUCTS.map(p => [Math.min(score(p[li]), score(p[0]) + 0.5, score(p[1]) + 0.5, score(p[2]) + 0.5), p]).filter(([s]) => s < 9).sort((a, b) => a[0] - b[0]);
-  base.forEach(([, p]) => { const mm = m[p[li].toLowerCase()]; add(p[li], mm ? mm.b : p[3], mm ? mm.p : 0, p[4], mm ? mm.c : '', false); });
+  base.forEach(([, p]) => { const n = dn(p), mm = m[n.toLowerCase()] || m[p[li].toLowerCase()]; add(n, mm ? mm.b : p[3], mm ? mm.p : 0, p[4], mm ? mm.c : '', false); });
   const good = out.filter(o => score(o.n) < 2);
   return (good.length >= 3 ? good : [...good, ...out.filter(o => score(o.n) >= 2).slice(0, 2)]).slice(0, 8);
 }
@@ -65,7 +89,8 @@ function pageShop() {
     : `<div class="empty card"><div class="em bskbig">${BASKET}</div><b>${t('shop_empty')}</b>${t('shop_empty_s')}</div>`}
    <button class="btn w" data-act="shopnew">${ic('plus')}${t('shop_new')}</button>
    ${H.length ? `<div class="card"><div class="ch"><h2>${t('shop_hist')}</h2></div>${H.map(l => { const d = lsPaid(l) - lsPlanBought(l);
-     return `<div class="row"><div class="ico sm">${l.e}</div><div class="tx"><b>${esc(l.nom)}</b><small>${l.dt_done ? fmtDay(pd(l.dt_done)) : ''} · ${money(lsPaid(l))}${lsPlanBought(l) ? ` · <span class="${d > 0 ? 'neg' : 'pos'}">${d > 0 ? '+' : ''}${money(d)}</span>` : ''}</small></div><button class="btn sm alt" data-shrep="${l.id}">🔁 ${t('dup')}</button></div>`; }).join('')}</div>` : ''}`;
+     return `<div class="row"><div class="ico sm">${l.e}</div><div class="tx"><b>${esc(l.nom)}</b><small>${l.dt_done ? fmtDay(pd(l.dt_done)) : ''} · ${money(lsPaid(l))}${lsPlanBought(l) ? ` · <span class="${d > 0 ? 'neg' : 'pos'}">${d > 0 ? '+' : ''}${money(d)}</span>` : ''}</small></div><button class="btn sm alt" data-shrep="${l.id}">🔁</button><button class="ib pl" data-shdel="${l.id}" aria-label="delete" style="color:var(--bad)">${ic('trash')}</button></div>`; }).join('')}
+     <button class="btn sm alt w" data-act="shopclear" style="margin-top:10px;color:var(--bad)">${ic('trash')}${t('shop_clear')}</button></div>` : ''}`;
 }
 
 function shopLimitWarn(l) {
@@ -82,11 +107,11 @@ function shopListView(l) {
   const todo = l.items.filter(i => !i.olindi), got = l.items.filter(i => i.olindi), n = l.items.length;
   const row = i => { const c = !l.c && i.c ? catById(i.c) : null, real = i.olindi;
     return `<div class="row shi ${real ? 'got' : ''}" data-shitem="${i.id}"><button class="chk ${real ? 'on' : ''}" data-shchk="${i.id}" aria-label="ok">${real ? ic('check') : ''}</button>
-     <div class="tx"><b>${esc(i.nom)}</b><small>${real ? `${qtyTxt(i.fmiq ?? i.miq, i.b)} × ${fmt(i.fnarx ?? i.narx)}` : `${qtyTxt(i.miq, i.b)}${+i.narx ? ` × ~${fmt(i.narx)}` : ''}`}${c ? ` · ${c.e}` : ''}</small></div>
+     <div class="tx"><b>${esc(i.nom)}</b><small>${real ? `${qtyTxt(i.fmiq ?? i.miq, i.b, i.nom)} × ${fmt(i.fnarx ?? i.narx)}` : `${qtyTxt(i.miq, i.b, i.nom)}${+i.narx ? ` × ~${fmt(i.narx)}` : ''}`}${c ? ` · ${c.e}` : ''}</small></div>
      <b class="num ${real ? '' : 'muted'}">${real ? fmt(itReal(i)) : +i.narx ? '~' + fmt(itEst(i)) : '—'}</b></div>`; };
   return `<div class="card" style="display:grid;gap:10px">
     <div style="display:flex;align-items:center;gap:10px"><div style="font-size:26px">${l.e}</div><div style="flex:1;min-width:0"><b style="font-size:17px">${esc(l.nom)}</b><div class="small muted">${l.c ? esc(catName(catById(l.c))) : t('shop_general')}</div></div>
-     <button class="ib pl" data-act="shopshare" aria-label="share">${ic('share') || '📤'}</button><button class="ib pl" data-act="shopedit" aria-label="edit">${ic('edit')}</button></div>
+     <button class="ib pl" data-act="shopshare" aria-label="share">${ic('share') || '📤'}</button><button class="ib pl" data-act="shopedit" aria-label="edit">${ic('edit')}</button><button class="ib pl" data-shdel="${l.id}" aria-label="delete" style="color:var(--bad)">${ic('trash')}</button></div>
     <div class="g2"><div class="kp"><small>${t('shop_plan')}</small><b class="num">~${money(lsEst(l))}</b><small>${t('shop_n', { n })}</small></div>
      <div class="kp"><small>${t('shop_got_t')}</small><b class="num pos">${money(lsReal(l))}</b><small>${t('shop_got', { g: got.length, n })}</small></div></div>
     <div class="bar" style="height:8px"><i style="width:${n ? got.length / n * 100 : 0}%;--c:var(--good)"></i></div>
@@ -103,7 +128,7 @@ function drawSug() {
   const q = ($('#shq') || {}).value || ''; SHOP.q = q; SHOP.sug = prodSuggest(q);
   if (!q.trim()) { box.innerHTML = ''; return; }
   const exact = SHOP.sug.some(s => s.n.toLowerCase() === q.trim().toLowerCase());
-  box.innerHTML = SHOP.sug.map((s, k) => `<button data-shsug="${k}"><span>${s.own ? '🕘 ' : ''}${esc(s.n)}</span><small>${s.p ? `~${fmt(s.p)} / ${unitName(s.b)}` : unitName(s.b)}</small></button>`).join('')
+  box.innerHTML = SHOP.sug.map((s, k) => `<button data-shsug="${k}"><span>${s.own ? '🕘 ' : ''}${esc(s.n)}</span><small>${s.p ? `~${fmt(s.p)} / ${unitOf(s.b, s.n)}` : unitOf(s.b, s.n)}</small></button>`).join('')
     + (exact ? '' : `<button data-shsug="new"><span>${ic('plus')} «${esc(q.trim())}»</span><small>${t('shop_newprod')}</small></button>`);
 }
 
@@ -116,7 +141,7 @@ function shopNew(id) {
    <div class="fld"><label>${t('shop_name')}</label><input id="sln" value="${l ? esc(l.nom) : ''}" placeholder="${t('shop_name_ph')}" maxlength="40"></div>`,
     async () => { const c = val('slc'), cat = c ? catById(c) : null, nom = val('sln').trim() || (cat ? catName(cat) : t('pg_shop'));
       const rec = l ? { ...l, nom, c, e: cat ? cat.e : '🧺' } : { id: uid(), nom, c, e: cat ? cat.e : '🧺', items: [], done: false, kim: me() };
-      upsert('lists', rec); await persist(); closeModal(); UI.page = 'shop'; UI.shopList = rec.id; SHOP.q = ''; render(); if (!l) setTimeout(() => { const q = $('#shq'); if (q) q.focus(); }, 120); }, l ? 'lists:' + l.id : '');
+      upsert('lists', rec); await persist(); closeModal(); UI.page = 'shop'; UI.shopList = rec.id; SHOP.q = ''; render(); if (!l) setTimeout(() => { const q = $('#shq'); if (q) q.focus(); }, 120); }, '');
 }
 
 function shopItem(lid, iid, pre) {
@@ -182,7 +207,7 @@ function shopFinish() {
       const split = shopSplit(by, got, l, paid);
       const dt = val('sfd') || ymd(today()), rate = w.cur && w.cur !== 'UZS' ? rateOf(w.cur) : 1, ids = [];
       for (const [cid, s] of Object.entries(split)) {
-        const names = got.filter(i => (i.c || l.c || foodCat()) === cid).map(i => `${i.nom} ${qtyTxt(i.fmiq ?? i.miq, i.b)}`).join(', ');
+        const names = got.filter(i => (i.c || l.c || foodCat()) === cid).map(i => `${i.nom} ${qtyTxt(i.fmiq ?? i.miq, i.b, i.nom)}`).join(', ');
         const note = (`🧺 ${l.nom}: ${names}`).slice(0, 200), id = uid(); ids.push(id);
         upsert('tx', { id, tur: 'x', c: cid, s: Math.round(s / rate * 100) / 100, w: w.id, dt, n: note, kim: me(), shop: l.id });
       }
@@ -203,6 +228,21 @@ function shopSplit(by, got, l, total) {
   const top = Object.entries(cnt).sort((a, b) => b[1] - a[1])[0]; out[top ? top[0] : foodCat()] = total; return out;
 }
 function shopByHtml(sp) { return Object.entries(sp).map(([cid, s]) => { const c = catById(cid); return `<div class="kv"><span>${c ? c.e + ' ' + esc(catName(c)) : '—'}</span><b>${money(s)}</b></div>`; }).join(''); }
+function listTx(l) { const ids = new Set(l.tx || []); return live(DB.tx).filter(x => ids.has(x.id) || x.shop === l.id); }
+async function shopDelete(id) {
+  const l = shopLists().find(x => x.id === id); if (!l) return;
+  const txs = listTx(l), sum = txs.reduce((s, x) => s + txUZS(x), 0);
+  if (!confirm(txs.length ? t('shop_del_q_tx', { n: l.nom, s: fmt(sum) }) : t('shop_del_q', { n: l.nom }))) return;
+  txs.forEach(x => remove('tx', x.id)); remove('lists', id);
+  await persist(); if (UI.shopList === id) UI.shopList = null; closeModal(); render(); toast(t('deleted'));
+}
+async function shopClear() {
+  const H = shopLists().filter(x => x.done); if (!H.length) return;
+  const txs = H.flatMap(listTx), sum = txs.reduce((s, x) => s + txUZS(x), 0);
+  if (!confirm(t('shop_clear_q', { n: H.length, s: fmt(sum) }))) return;
+  txs.forEach(x => remove('tx', x.id)); H.forEach(l => remove('lists', l.id));
+  await persist(); render(); toast(t('deleted'));
+}
 async function shopRepeat(id) {
   const l = shopLists().find(x => x.id === id); if (!l) return;
   const m = shopMem(), rec = { id: uid(), nom: l.nom, c: l.c, e: l.e, done: false, kim: me(),
@@ -212,7 +252,7 @@ async function shopRepeat(id) {
 
 async function shopShare() {
   const l = shopLists().find(x => x.id === UI.shopList); if (!l) return;
-  const lines = l.items.filter(i => !i.olindi).map(i => `☐ ${i.nom} — ${qtyTxt(i.miq, i.b)}${+i.narx ? ` (~${fmt(itEst(i))})` : ''}`);
+  const lines = l.items.filter(i => !i.olindi).map(i => `☐ ${i.nom} — ${qtyTxt(i.miq, i.b, i.nom)}${+i.narx ? ` (~${fmt(itEst(i))})` : ''}`);
   const txt = `🧺 ${l.nom}\n\n${lines.join('\n') || '—'}\n\n${t('shop_plan')}: ~${fmt(l.items.filter(i => !i.olindi).reduce((s, i) => s + itEst(i), 0))}\n— ${me()} · ${t('app')}`;
   if (await Platform.shareText(l.nom, txt)) return;
   await Platform.copy(txt); toast(t('copied'));
@@ -228,9 +268,11 @@ document.addEventListener('click', async e => {
     if (a === 'shopedit') return shopNew(UI.shopList);
     if (a === 'shopfinish') return shopFinish();
     if (a === 'shopshare') return shopShare();
+    if (a === 'shopclear') return shopClear();
     if (a === 'shopadd') { const q = (($('#shq') || {}).value || '').trim(); if (!q) return $('#shq').focus(); const s = prodSuggest(q).find(z => z.n.toLowerCase() === q.toLowerCase()); return shopItem(UI.shopList, null, s || { n: q[0].toUpperCase() + q.slice(1) }); }
     return; }
   if ((x = c('[data-shopen]'))) { UI.shopList = x.dataset.shopen; SHOP.q = ''; return render(); }
+  if ((x = c('[data-shdel]'))) return shopDelete(x.dataset.shdel);
   if ((x = c('[data-shrep]'))) return shopRepeat(x.dataset.shrep);
   if ((x = c('[data-shsug]'))) { const k = x.dataset.shsug, q = (($('#shq') || {}).value || '').trim();
     return shopItem(UI.shopList, null, k === 'new' ? { n: q[0].toUpperCase() + q.slice(1) } : SHOP.sug[+k]); }
