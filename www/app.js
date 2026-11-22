@@ -214,7 +214,7 @@ const perSeg = () => `<div class="seg full">${['week', 'month', 'quarter', 'year
 const SUB = ['rates', 'learn', 'settings', 'feedback'];
 const FEEDBACK_TG = 'bsp3221';
 let FB = { type: 'idea', t: '', img: null };
-const APPV = '1.8';
+const APPV = '1.9';
 function devInfo() { const u = navigator.userAgent, a = u.match(/Android [\d.]+/), m = u.match(/;\s*([^;)]+)\s+Build/), i = u.match(/iPhone OS [\d_]+/);
   return [a ? a[0] : i ? i[0].replace(/_/g, '.') : (u.match(/Windows NT [\d.]+|Mac OS X [\d_]+/) || ['?'])[0], m ? m[1] : '', Platform.native ? 'APK' : 'Web'].filter(Boolean).join(' · '); }
 function pageFeedback() {
@@ -295,13 +295,15 @@ function pageRates() {
    <div class="cvbox"><small>${t('cv_give')}</small><div class="cvrow"><select id="cvf">${opts(CONV.f)}</select><input id="cva" inputmode="decimal" value="${esc(fmtInput(CONV.a))}" aria-label="${t('sum')}"></div></div>
    <div class="cvsw"><button class="ib" data-act="cvswap" aria-label="swap">${ic('swap')}</button></div>
    <div class="cvbox got"><small>${t('cv_get')}</small><div class="cvrow"><select id="cvt">${opts(CONV.to)}</select><b class="num">${fmtCv(res, CONV.to)}</b></div></div>
+   ${(() => { if (!(a > 0)) return ''; if (CONV.to === 'UZS' && CONV.f !== 'UZS') { const x = bankBest(CONV.f, 'b'); if (x) return `<div class="tip" style="margin-top:12px"><span>🏦</span><div>${t('bk_cv_sell', { a: fmtCv(a, CONV.f) + ' ' + CONV.f, b: esc(bankName(x.n)), s: fmt(a * x.b) })}</div></div>`; }
+     if (CONV.f === 'UZS' && CONV.to !== 'UZS') { const x = bankBest(CONV.to, 's'); if (x) return `<div class="tip" style="margin-top:12px"><span>🏦</span><div>${t('bk_cv_buy', { a: fmt(a), b: esc(bankName(x.n)), s: fmtCv(a / x.s, CONV.to) + ' ' + CONV.to })}</div></div>`; } return ''; })()}
    <div class="small" style="margin-top:12px;display:grid;gap:4px"><span>1 ${CONV.f} = <b>${fmtCv(rf / rt, CONV.to)}</b> ${CONV.to}</span><span>1 ${CONV.to} = <b>${fmtCv(rt / rf, CONV.f)}</b> ${CONV.f}</span></div>
    <div class="small muted" style="margin-top:8px">${t('cv_note')}</div></div>`;
   const q = CONV.q.trim().toLowerCase();
   const top = ['USD', 'EUR', 'RUB', 'GBP', 'CNY', 'KZT', 'TRY', 'JPY'];
   const list = [...R.list].sort((x, y) => { const i = top.indexOf(x.c), j = top.indexOf(y.c); return (i < 0 ? 99 : i) - (j < 0 ? 99 : j) || x.c.localeCompare(y.c); })
     .filter(x => !q || x.c.toLowerCase().includes(q) || Object.values(x.n).join(' ').toLowerCase().includes(q));
-  return `${head}${conv}<div class="card"><div class="fld" style="margin-bottom:6px"><input id="rq" placeholder="${t('search')}" value="${esc(CONV.q)}"></div>
+  return `${head}${conv}${banksCard()}<div class="card"><div class="fld" style="margin-bottom:6px"><input id="rq" placeholder="${t('search')}" value="${esc(CONV.q)}"></div>
    ${list.map(x => `<div class="row" data-rc="${x.c}" style="cursor:pointer"><div class="ico sm" style="font-size:12px;font-weight:800;font-family:var(--fm)">${x.c}</div><div class="tx"><b>${esc(x.n[L()] || x.n.uz)}</b><small>1 ${x.c}</small></div><div class="pct num" style="text-align:right"><b>${sp(Math.floor(x.r))}${(x.r % 1).toFixed(2).slice(1)}</b><small class="${x.d > 0 ? 'neg' : x.d < 0 ? 'pos' : 'muted'}">${x.d > 0 ? '▲' : x.d < 0 ? '▼' : '='} ${Math.abs(x.d).toFixed(2)}</small></div></div>`).join('')}</div>`;
 }
 
@@ -1021,6 +1023,44 @@ async function fetchRates(force) {
   ratesBusy = false; return false;
 }
 
+/* =================== Tijorat banklari kurslari =================== */
+let banksBusy = false;
+async function fetchBanks(force) {
+  if (banksBusy) return; const B = DB.banks;
+  if (!force && B && Date.now() - B.at < 2 * 3600e3) return;
+  banksBusy = true;
+  for (const u of [PAGES && PAGES + 'banks.json?t=' + Date.now(), 'banks.json?t=' + Date.now()].filter(Boolean)) {
+    try { const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 8000);
+      const r = await fetch(u, { cache: 'no-store', signal: ctl.signal }); clearTimeout(tm); const j = await r.json();
+      if (j && j.cur && Object.keys(j.cur).length) { DB.banks = { at: Date.now(), fetched: j.fetched, src: j.src, cur: j.cur }; await Platform.save(DB); banksBusy = false;
+        if (UI.page === 'rates' && !$('#modal').innerHTML && !$('#lock').innerHTML) render(); return true; }
+    } catch (_) {}
+  }
+  banksBusy = false; return false;
+}
+const CYR_UZ = { а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ё: 'yo', ж: 'j', з: 'z', и: 'i', й: 'y', к: 'k', л: 'l', м: 'm', н: 'n', о: 'o', п: 'p', р: 'r', с: 's', т: 't', у: 'u', ф: 'f', х: 'x', ц: 's', ч: 'ç', ш: 'ş', щ: 'ş', ъ: 'ʼ', ы: 'i', ь: '', э: 'e', ю: 'yu', я: 'ya', ў: 'ö', қ: 'q', ғ: 'ğ', ҳ: 'h' };
+const bankName = n => L() === 'uz' && /[а-яёўғқҳ]/i.test(n) ? n.replace(/[а-яёўғқҳ]/gi, ch => { const l = CYR_UZ[ch.toLowerCase()] ?? ch; return ch === ch.toLowerCase() ? l : l.charAt(0).toUpperCase() + l.slice(1); }) : n;
+const bankList = c => ((DB.banks && DB.banks.cur && DB.banks.cur[c]) || []);
+function bankBest(c, side) { const L_ = bankList(c).filter(x => side === 's' ? x.s : x.b); if (!L_.length) return null;
+  return L_.reduce((a, x) => side === 's' ? (x.s < a.s ? x : a) : (x.b > a.b ? x : a)); }
+function bankTime() { const B = DB.banks; if (!B || !B.fetched) return ''; const d = new Date(B.fetched), td = today();
+  const hm = d.toTimeString().slice(0, 5); return (ymd(d) === ymd(td) ? t('today') : fmtDay(d)) + ' ' + hm; }
+function banksCard() {
+  const B = DB.banks, cs = B && B.cur ? Object.keys(B.cur) : [];
+  if (!cs.length) return `<div class="card"><div class="ch"><h2>🏦 ${t('bk_title')}</h2></div><div class="small muted">${t('bk_none')}</div></div>`;
+  if (!cs.includes(UI.bkc)) UI.bkc = cs[0];
+  const c = UI.bkc, list = bankList(c), sym = SYM[c] || c;
+  const buy = list.filter(x => x.s).sort((a, b) => a.s - b.s).slice(0, 3), sell = list.filter(x => x.b).sort((a, b) => b.b - a.b).slice(0, 3);
+  const row = (x, v, i) => `<div class="bkr"><span class="bkn">${i + 1}</span><b>${esc(bankName(x.n))}</b><em class="num">${sp(Math.round(v))}</em></div>`;
+  return `<div class="card"><div class="ch"><div><h2>🏦 ${t('bk_title')}</h2><p>${t('bk_upd', { d: bankTime() })}</p></div></div>
+   <div class="chips" style="margin-bottom:12px">${cs.map(k => `<button class="chip ${k === c ? 'on' : ''}" data-bkc="${k}">${FLAG(k)} ${k}</button>`).join('')}</div>
+   <div class="bkg"><div class="bkbox"><small>🛒 ${t('bk_buy', { c: sym })}</small>${buy.map((x, i) => row(x, x.s, i)).join('')}<div class="small muted">${t('bk_buy_s')}</div></div>
+    <div class="bkbox"><small>💵 ${t('bk_sell', { c: sym })}</small>${sell.map((x, i) => row(x, x.b, i)).join('')}<div class="small muted">${t('bk_sell_s')}</div></div></div>
+   <details style="margin-top:12px"><summary class="lnk" style="cursor:pointer;padding:0">${t('bk_all', { n: list.length })}</summary>
+    <div class="bkt"><div class="bkh"><span>${t('bank_col')}</span><span>${t('bk_s')}</span><span>${t('bk_b')}</span></div>${list.slice().sort((a, b) => (a.s || 1e12) - (b.s || 1e12)).map(x => `<div><span>${esc(bankName(x.n))}</span><span class="num">${x.s ? sp(Math.round(x.s)) : '—'}</span><span class="num">${x.b ? sp(Math.round(x.b)) : '—'}</span></div>`).join('')}</div></details>
+   <div class="small muted" style="margin-top:10px">${t('bk_note', { s: esc(B.src || 'OnMap.uz') })}</div></div>`;
+}
+
 /* =================== Anonim foydalanuvçilar soni =================== */
 /* Faqat son: ism, telefon yoki moliyaviy maʼlumot yuborilmaydi */
 const COUNTER = 'https://countapi.mileshilliard.com/api/v1/hit/';
@@ -1197,6 +1237,7 @@ document.addEventListener('click', async e => {
   if ((x = c('[data-lesson]'))) return openLesson(x.dataset.lesson);
   if ((x = c('[data-qa]'))) { if (QZ.picked != null) return; QZ.picked = +x.dataset.qa; const q = (LESSONS[L()] || LESSONS.uz).find(z => z.id === QZ.id).q[QZ.i]; if (QZ.picked === q.c) QZ.score++; return drawQuiz(); }
   if ((x = c('[data-rc]'))) { CONV.f = x.dataset.rc; if (CONV.to === CONV.f) CONV.to = 'UZS'; convSave(); render(); $('#main').scrollTop = 0; return; }
+  if ((x = c('[data-bkc]'))) { UI.bkc = x.dataset.bkc; return render(); }
   if ((x = c('[data-cvq]'))) { CONV.f = x.dataset.cvq; if (CONV.to === CONV.f) CONV.to = 'UZS'; convSave(); return render(); }
   if ((x = c('[data-cat]'))) return openCat(x.dataset.cat);
   if ((x = c('[data-del]'))) { const [col, id, sub] = x.dataset.del.split(':'); if (!confirm(col === 'goals' ? t('goal_del_q') : t('del_q'))) return;
@@ -1215,7 +1256,7 @@ document.addEventListener('click', async e => {
     if (a === 'planedit') { const p = DB.settings.tejash_foiz || 20;
       formModal('🐷 ' + t('plan_t'), `<div class="small muted">${t('plan_help')}</div><div class="chips">${[10, 15, 20, 25, 30].map(v => `<button class="chip ${v === p ? 'on' : ''}" data-pct="${v}">${v}%</button>`).join('')}</div>
         <div class="fld"><label>${t('plan_pct')}</label><input id="fp" type="number" min="0" max="90" value="${p}"></div>`, async () => { DB.settings.tejash_foiz = Math.max(0, Math.min(90, +val('fp') || 0)); await persist(); closeModal(); render(); toast(t('saved')); }); return; }
-    if (a === 'ratesref') { toast(t('loading')); const ok = await fetchRates(true); if (!ok) toast(t('rates_fail'), 'bd'); else toast(t('saved')); return; }
+    if (a === 'ratesref') { toast(t('loading')); const ok = await fetchRates(true); await fetchBanks(true); if (!ok) toast(t('rates_fail'), 'bd'); else toast(t('saved')); return; }
     if (a === 'cvswap') { [CONV.f, CONV.to] = [CONV.to, CONV.f]; convSave(); return render(); }
     if (a === 'quizstart') { QZ = { id: x.dataset.lid, i: 0, score: 0, picked: null }; return drawQuiz(); }
     if (a === 'quiznext') { QZ.i++; QZ.picked = null; return drawQuiz(); }
@@ -1346,7 +1387,7 @@ function onBack() {
 }
 
 /* =================== Işga tuşiriş =================== */
-function afterUnlock() { render(); scheduleNotifications(); setTimeout(tgWeekly, 1500); setTimeout(() => fetchRates(false), 300); setTimeout(countUsage, 2500); if (pendingOpen && DB.settings.ism) setTimeout(runPendingOpen, 600); }
+function afterUnlock() { render(); scheduleNotifications(); setTimeout(tgWeekly, 1500); setTimeout(() => fetchRates(false), 300); setTimeout(() => fetchBanks(false), 900); setTimeout(countUsage, 2500); if (pendingOpen && DB.settings.ism) setTimeout(runPendingOpen, 600); }
 async function boot() {
   DB = await Platform.load();
   if (!DB || !DB.settings) DB = newDB();

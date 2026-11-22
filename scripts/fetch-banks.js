@@ -57,7 +57,7 @@ function parse(html, ref) {
         const ok = rows.filter(x => {
           const k = x.n.toLowerCase(); if (seen.has(k) || /^(bank|банк|valyuta|sotish|sotib|kurs)/i.test(x.n)) return false;
           const vals = [x.s, x.b].filter(Boolean); if (!vals.length) return false;
-          if (ref && vals.some(v => v < ref * 0.6 || v > ref * 1.5)) return false;
+          if (ref && vals.some(v => v < ref * 0.3 || v > ref * 1.6)) return false;
           seen.add(k); return true;
         });
         console.log(`${c}: ${ok.length} ta bank (${how}, jami qator ${rows.length}) — misol:`, JSON.stringify(ok.slice(0, 3)));
