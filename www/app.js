@@ -214,7 +214,7 @@ const perSeg = () => `<div class="seg full">${['week', 'month', 'quarter', 'year
 const SUB = ['rates', 'learn', 'settings', 'feedback'];
 const FEEDBACK_TG = 'bsp3221';
 let FB = { type: 'idea', t: '', img: null };
-const APPV = '1.5';
+const APPV = '1.6';
 function devInfo() { const u = navigator.userAgent, a = u.match(/Android [\d.]+/), m = u.match(/;\s*([^;)]+)\s+Build/), i = u.match(/iPhone OS [\d_]+/);
   return [a ? a[0] : i ? i[0].replace(/_/g, '.') : (u.match(/Windows NT [\d.]+|Mac OS X [\d_]+/) || ['?'])[0], m ? m[1] : '', Platform.native ? 'APK' : 'Web'].filter(Boolean).join(' · '); }
 function pageFeedback() {
@@ -242,7 +242,7 @@ function render() {
   const pages = { shop: pageShop, feedback: pageFeedback, home: pageHome, tx: pageTx, report: pageReport, plan: pagePlan, more: pageMore, rates: pageRates, learn: pageLearn, settings: pageSettings };
   const th = document.documentElement.dataset.theme, sub = SUB.includes(UI.page), shp = UI.page === 'shop', navOn = sub ? 'more' : shp ? 'home' : UI.page;
   $('#root').innerHTML = `<div class="app"><main class="main" id="main">
-   <header class="top">${sub ? `<button class="ib" data-pg="more">${ic('left')}</button>` : shp ? `<button class="ib" data-act="shopback">${ic('left')}</button>` : ''}<h1>${t('pg_' + UI.page)}</h1>${shp ? '' : shopHeaderBtn()}
+   <header class="top">${UI.page === 'settings' && UI.setSec ? `<button class="ib" data-act="setback">${ic('left')}</button>` : sub ? `<button class="ib" data-pg="more">${ic('left')}</button>` : shp ? `<button class="ib" data-act="shopback">${ic('left')}</button>` : ''}<h1>${UI.page === 'settings' && UI.setSec ? setSecInfo(UI.setSec)[1] : t('pg_' + UI.page)}</h1>${shp ? '' : shopHeaderBtn()}
     ${sub || shp ? "" : `<button class="ib famb" data-act="famsheet" aria-label="${t('fam_share')}">${ic('famx')}${syncDue() ? '<i class="rdot"></i>' : ''}</button>`}
     <div class="langw"><button class="langb" data-act="langmenu" aria-label="Til">${ic('globe')}${L().toUpperCase()}<span>▾</span></button>
      ${UI.langOpen ? `<div class="langpop">${LANGS.map(([k, n]) => `<button class="${L() === k ? 'on' : ''}" data-lang="${k}"><b>${k.toUpperCase()}</b>${n}${L() === k ? `<i>${ic('check')}</i>` : ''}</button>`).join('')}</div>` : ''}</div>
@@ -279,7 +279,7 @@ let CONV = { a: '100', c: 'USD', rev: false, q: '' };
 function pageRates() {
   const R = DB.rates;
   const head = `<div class="card"><div class="ch"><div><h2>🏦 ${t('cbu')}</h2><p>${R ? t('rates_date', { d: esc(R.date || '') }) : t('rates_none')}</p></div><button class="btn sm alt" data-act="ratesref">${ic('swap')}${t('refresh')}</button></div>
-   ${R ? '' : `<div class="tip wn"><span>⚠️</span><div>${t('rates_off')}</div></div>`}</div>`;
+   ${R ? '' : `<div class="tip wn"><span>⚠️</span><div>${t('rates_off')}</div></div><div class="fld" style="margin-top:10px"><label>${t('rate_manual')}</label><input id="setRate" inputmode="decimal" value="${sp(DB.settings.kurs)}"></div>`}</div>`;
   if (!R) return head;
   const r = rateOf(CONV.c), a = parseAmt(CONV.a), res = CONV.rev ? (r ? a / r : 0) : a * r;
   const conv = `<div class="card"><div class="ch"><h2>🧮 ${t('calc')}</h2></div>
@@ -308,7 +308,6 @@ function onboarding() {
     <div><div class="small muted" style="margin-bottom:6px">${t('ob_fam')} *</div><div class="chips" style="flex-wrap:wrap">${[1, 2, 3, 4, 5, 6, 7].map(n => `<button class="chip ${OB.soni === n ? 'on' : ''}" data-obsoni="${n}">${n === 7 ? '7+' : n}</button>`).join('')}</div></div>
     <div class="fld"><label>${t('ob_city')} <span class="muted">(${t('optional')})</span></label><input id="obCity" value="${esc(OB.shahar || '')}" placeholder="${t('ob_city_ph')}" maxlength="30"></div></div>`;
   else if (OB.step === 2) body = `<div class="card" style="display:grid;gap:14px"><h3 style="margin:0">👛 ${t('ob_s2')}</h3>
-    ${DB.rates ? '' : `<div class="fld"><label>${t('rate')}</label><input id="obRate" inputmode="decimal" value="${sp(st.kurs)}"></div>`}
     <div class="small muted">${t('ob_start')}</div>
     ${W().map(w => `<div class="fld"><label>${w.e} ${walName(w)} (${unit(w.cur)})</label><input data-ob="${w.id}" inputmode="decimal" placeholder="0" value="${esc((OB.bal || {})[w.id] || '')}"></div>`).join('')}</div>`;
   else body = `<div class="card" style="display:grid;gap:12px"><h3 style="margin:0">🔒 ${t('ob_s3')}</h3>
@@ -320,6 +319,7 @@ function onboarding() {
    <div style="text-align:center"><div class="lock" style="position:static;background:none;padding:0;gap:10px"><div class="mk">💰</div><h2>${t('app')}</h2></div><p class="muted" style="margin:6px 0 0">${t('ob_sub')}</p></div>
    ${OB.step === 1 ? `<div class="seg full">${LANGS.map(([k, n]) => `<button class="${L() === k ? 'on' : ''}" data-lang="${k}">${n}</button>`).join('')}</div>` : ''}
    ${steps}${body}
+   ${OB.step === 1 ? `<button class="btn alt sm" data-act="obrestore" style="justify-self:center">♻️ ${t('ob_restore')}</button>` : ''}
    ${OB.step < 3 ? `<div class="g2">${OB.step > 1 ? `<button class="btn alt" data-act="obback">← ${t('back')}</button>` : '<span></span>'}<button class="btn" data-act="obnext">${t('next')} →</button></div>` : `<button class="btn alt sm" data-act="obback" style="justify-self:start">← ${t('back')}</button>`}
    </div></main></div>`;
 }
@@ -602,51 +602,64 @@ function planRec() {
 
 /* ---------- Sozlamalar ---------- */
 let TG = { phase: 'idle', code: '', bot: '', token: '', timer: null, until: 0 };
+const SET_SECS = ['profile', 'wallets', 'cats', 'notif', 'tg', 'security', 'data', 'look'];
+function setSecInfo(k) {
+  const s = DB.settings;
+  return {
+    profile: ['👤', t('profile'), [s.ism, s.rol ? t('role_' + s.rol) : '', s.oila_soni ? t('fam_n', { n: s.oila_soni }) : ''].filter(Boolean).map(esc).join(' · ')],
+    wallets: ['👛', t('wallets'), t('wal_n', { n: W().length })],
+    cats: ['🏷️', t('categories'), t('cat_n', { a: live(DB.cats).filter(c => c.tur === 'x').length, b: live(DB.cats).filter(c => c.tur === 'd').length })],
+    notif: ['🔔', t('notif'), s.eslat ? `${t('on')} · ${esc(s.eslat_vaqt || '')}` : t('off')],
+    tg: ['✈️', t('tg_title'), s.tg_chat_id ? t('tg_linked') : t('tg_not')],
+    security: ['🔒', t('security'), s.pin ? [t('pin'), s.bio ? t('bio_short') : '', s.sir_h ? t('sq_t') : ''].filter(Boolean).join(' · ') : t('pin_off')],
+    data: ['🗄️', t('data'), t('data_sub')],
+    look: ['🎨', t('look'), `${(LANGS.find(x => x[0] === L()) || [])[1]} · ${t({ light: 'th_l', dark: 'th_d', auto: 'th_a' }[s.mavzu] || 'th_a')}`],
+  }[k];
+}
 function pageSettings() {
-  const s = DB.settings, ws = W(), R = DB.rates;
-  return `
-  <div class="card"><div class="ch"><h2>👤 ${t('profile')}</h2></div>
+  const s = DB.settings, ws = W(), sec = UI.setSec;
+  if (!sec) return `<div class="card" style="padding:6px 12px">${SET_SECS.filter(k => k !== 'notif' || Platform.notify.available).map(k => { const [e, ttl, sub] = setSecInfo(k);
+      return `<button class="mi" data-setsec="${k}"><div class="ico">${e}</div><div class="tx"><b>${ttl}</b><small>${sub || '&nbsp;'}</small></div>${ic('right')}</button>`; }).join('')}</div>
+   <div class="small muted" style="text-align:center;padding:4px 0 10px">🛡️ ${t('privacy')}<br>${t('app')} · v${APPV}</div>`;
+  const body = {
+  profile: () => `<div class="card">
    <div class="fld"><label>${t('ob_name')}</label><input id="setName" value="${esc(s.ism)}" maxlength="30"></div>
    <div class="small muted" style="margin-top:6px">${t('name_hint')}</div>
    <div class="g2" style="margin-top:12px"><div class="fld"><label>${t('ob_year')}</label><input id="setYear" inputmode="numeric" maxlength="4" value="${esc(s.yil || '')}"></div><div class="fld"><label>${t('ob_city')}</label><input id="setCity" value="${esc(s.shahar || '')}" maxlength="30"></div></div>
    <div class="small muted" style="margin:10px 0 6px">${t('ob_role')}</div><div class="chips" style="flex-wrap:wrap">${ROLES.map(r => `<button class="chip ${s.rol === r ? 'on' : ''}" data-setrol="${r}">${t('role_' + r)}</button>`).join('')}</div>
    <div class="small muted" style="margin:10px 0 6px">${t('ob_fam')}</div><div class="chips" style="flex-wrap:wrap">${[1, 2, 3, 4, 5, 6, 7].map(n => `<button class="chip ${+s.oila_soni === n ? 'on' : ''}" data-setsoni="${n}">${n === 7 ? '7+' : n}</button>`).join('')}</div>
-   <div class="small muted" style="margin-top:10px">🛡️ ${t('prof_local')}</div></div>
-  <div class="card"><div class="ch"><h2>👛 ${t('wallets')}</h2><button class="lnk" data-act="walnew">+ ${t('add_s')}</button></div>
+   <div class="small muted" style="margin-top:10px">🛡️ ${t('prof_local')}</div></div>`,
+  wallets: () => `<div class="card"><div class="ch"><h2>👛 ${t('wallets')}</h2><button class="lnk" data-act="walnew">+ ${t('add_s')}</button></div>
    ${ws.map((w, i) => `<div class="row"><div class="ico sm">${w.e}</div><div class="tx" data-wal="${w.id}" style="cursor:pointer"><b>${esc(walName(w))}</b><small>${w.cur} · ${fmt(balance(w), w.cur)}</small></div>
      <div class="ord"><button class="ib pl" data-wup="${w.id}" ${i === 0 ? 'disabled' : ''}>▲</button><button class="ib pl" data-wdn="${w.id}" ${i === ws.length - 1 ? 'disabled' : ''}>▼</button></div></div>`).join('')}
    <div class="small muted" style="margin-top:6px">${t('wal_order')}</div>
-   ${ws.length > 1 ? `<button class="btn sm alt w" style="margin-top:8px" data-act="transfer">${ic('swap')}${t('transfer')}</button>` : ''}</div>
-  <div class="card"><div class="ch"><h2>🏷️ ${t('categories')}</h2><button class="lnk" data-act="catnew">+ ${t('add_s')}</button></div>
-   ${['x', 'd'].map(tp => `<div class="small muted" style="margin:6px 0">${t(tp === 'x' ? 'expenses' : 'incomes')}</div><div class="chips" style="flex-wrap:wrap">${live(DB.cats).filter(c => c.tur === tp).map(c => `<button class="chip" data-cat="${c.id}">${c.e} ${esc(catName(c))}</button>`).join('')}</div>`).join('')}</div>
-  <div class="card"><div class="ch"><div><h2>💱 ${t('currency')}</h2><p>${R ? t('rates_auto', { d: esc(R.date || '') }) : t('rates_none')}</p></div><button class="lnk" data-pg="rates">${t('all')} →</button></div>
-   ${R ? '' : `<div class="fld"><label>${t('rate_manual')}</label><input id="setRate" inputmode="decimal" value="${sp(s.kurs)}"></div>`}</div>
-  <div class="card"><div class="ch"><div><h2>👨‍👩‍👧 ${t('family')}</h2><p>${t('family_s')}</p></div></div>
-   <div class="g2"><button class="btn sm" data-act="syncsend">${ic('share')}${t('sync_send')}</button><button class="btn sm alt" data-act="syncget">${ic('import')}${t('sync_get')}</button></div>
-   <div class="small muted" style="margin-top:10px">${s.sync_oxirgi ? t('sync_last', { d: s.sync_oxirgi }) : t('sync_never')}${members().length ? ' · 👥 ' + members().map(esc).join(', ') : ''}</div>
-   <details style="margin-top:10px"><summary class="lnk" style="cursor:pointer;padding:0">${t('how')}</summary><ol class="small muted" style="padding-left:18px;margin:8px 0 0;line-height:1.6">${t('sync_how')}</ol></details></div>
-  ${Platform.notify.available ? `<div class="card"><div class="ch"><h2>🔔 ${t('notif')}</h2><button class="lnk" data-act="ntest">${t('test')}</button></div>
+   ${ws.length > 1 ? `<button class="btn sm alt w" style="margin-top:8px" data-act="transfer">${ic('swap')}${t('transfer')}</button>` : ''}</div>`,
+  cats: () => `<div class="card"><div class="ch"><h2>🏷️ ${t('categories')}</h2><button class="lnk" data-act="catnew">+ ${t('add_s')}</button></div>
+   ${['x', 'd'].map(tp => `<div class="small muted" style="margin:6px 0">${t(tp === 'x' ? 'expenses' : 'incomes')}</div><div class="chips" style="flex-wrap:wrap">${live(DB.cats).filter(c => c.tur === tp).map(c => `<button class="chip" data-cat="${c.id}">${c.e} ${esc(catName(c))}</button>`).join('')}</div>`).join('')}</div>`,
+  notif: () => `<div class="card"><div class="ch"><h2>🔔 ${t('notif')}</h2><button class="lnk" data-act="ntest">${t('test')}</button></div>
    <div class="row"><div class="tx"><b>${t('n_daily')}</b><small>${t('n_daily_s')}</small></div>${sw('eslat', s.eslat)}</div>
    <div class="row"><div class="tx"><b>${t('n_time')}</b></div><div class="fld" style="width:120px"><input type="time" id="ntime" value="${esc(s.eslat_vaqt)}"></div></div>
-   <div class="small muted">${t('n_auto')}</div></div>` : ''}
-  ${tgCard()}
-  <div class="card"><div class="ch"><h2>🔒 ${t('security')}</h2></div>
+   <div class="small muted">${t('n_auto')}</div></div>`,
+  tg: () => tgCard(),
+  security: () => `<div class="card">
    <div class="row"><div class="tx"><b>${t('pin')}</b><small>${s.pin ? t('pin_on') : t('pin_off')}</small></div><button class="btn sm ${s.pin ? 'alt' : ''}" data-act="${s.pin ? 'pinoff' : 'pinset'}">${s.pin ? t('turn_off') : t('turn_on')}</button></div>
    ${s.pin ? `<div class="row"><div class="tx"><b>🔑 ${t('sq_t')}</b><small>${s.sir_h ? t('sq_on') : `<span class="neg">${t('sq_off')}</span>`}</small></div><button class="btn sm alt" data-act="secq">${s.sir_h ? t('change') : t('turn_on')}</button></div>` : ''}
    ${s.pin && BIO_OK ? `<div class="row"><div class="tx"><b>👆 ${t('bio_t')}</b><small>${t('bio_s')}</small></div>${sw('bio', s.bio)}</div>` : ''}
    <div class="row"><div class="tx"><b>✨ ${t('splash_t')}</b><small>${t('splash_s')}</small></div>${sw('splash', s.splash !== false)}</div>
-   <div class="small muted" style="margin-top:6px">${t('pin_rules')}</div></div>
-  <div class="card"><div class="ch"><h2>💾 ${t('data')}</h2></div>
+   <div class="small muted" style="margin-top:6px">${t('pin_rules')}</div></div>`,
+  data: () => `<div class="card">
    <div class="row"><div class="tx"><b>📊 ${t('xl_all')}</b><small>${t('xl_all_s')}</small></div><button class="btn sm alt" data-act="xlall">${ic('export')}</button></div>
-   <div class="row"><div class="tx"><b>🗄️ ${t('backup')}</b><small>${t('backup_s')}</small></div><button class="btn sm alt" data-act="syncsend">${ic('export')}</button></div>
-   <div class="row"><div class="tx"><b class="neg">🗑️ ${t('wipe')}</b><small>${t('wipe_s')}</small></div><button class="btn sm dng" data-act="wipe">${ic('trash')}</button></div>
+   <div class="row"><div class="tx"><b>🗄️ ${t('backup')}</b><small>${t('backup_s')}</small></div><button class="btn sm alt" data-act="backupfull">${ic('export')}</button></div>
+   <div class="row"><div class="tx"><b>♻️ ${t('restore')}</b><small>${t('restore_s')}</small></div><button class="btn sm alt" data-act="syncget">${ic('import')}</button></div>
    <div class="small muted" style="margin-top:8px">🛡️ ${t('privacy')}</div></div>
-  <div class="card"><div class="ch"><h2>🎨 ${t('look')}</h2></div>
-   <div style="display:grid;gap:12px"><div class="seg full">${LANGS.map(([k, n]) => `<button class="${L() === k ? 'on' : ''}" data-lang="${k}">${n}</button>`).join('')}</div>
-   <div class="seg full">${[['light', 'th_l'], ['dark', 'th_d'], ['auto', 'th_a']].map(([k, l]) => `<button class="${s.mavzu === k ? 'on' : ''}" data-thm="${k}">${t(l)}</button>`).join('')}</div>
-   <div class="row" style="margin-top:10px"><div class="tx"><b>🧺 ${t('bsk_t')}</b><small>${t('bsk_s')}</small></div>${sw('bsk_pulse', s.bsk_pulse)}</div>
-   <div class="sws">${COLORS.map(([k, a, b]) => `<button class="swc ${s.rang === k ? 'on' : ''}" data-color="${k}" style="--x1:${a};--x2:${b}"></button>`).join('')}</div></div></div>
-  <div class="small muted" style="text-align:center;padding:4px 0 10px">${t('app')} · v${APPV}</div>`;
+   <div class="card"><div class="row"><div class="tx"><b class="neg">🚪 ${t('logout')}</b><small>${t('logout_s')}</small></div><button class="btn sm dng" data-act="logout">${t('logout_btn')}</button></div></div>`,
+  look: () => `<div class="card" style="display:grid;gap:14px">
+   <div><div class="small muted" style="margin-bottom:6px">${t('lang_t')}</div><div class="langlist">${LANGS.map(([k, n]) => `<button class="${L() === k ? 'on' : ''}" data-lang="${k}"><b>${k.toUpperCase()}</b>${n}${L() === k ? `<i>${ic('check')}</i>` : ''}</button>`).join('')}</div></div>
+   <div><div class="small muted" style="margin-bottom:6px">${t('theme_t')}</div><div class="seg full">${[['light', 'th_l'], ['dark', 'th_d'], ['auto', 'th_a']].map(([k, l]) => `<button class="${s.mavzu === k ? 'on' : ''}" data-thm="${k}">${t(l)}</button>`).join('')}</div></div>
+   <div class="sws">${COLORS.map(([k, a, b]) => `<button class="swc ${s.rang === k ? 'on' : ''}" data-color="${k}" style="--x1:${a};--x2:${b}"></button>`).join('')}</div>
+   <div class="row"><div class="tx"><b>🧺 ${t('bsk_t')}</b><small>${t('bsk_s')}</small></div>${sw('bsk_pulse', s.bsk_pulse)}</div></div>`,
+  }[sec];
+  return body ? body() : '';
 }
 
 /* ---------- Bilim ---------- */
@@ -895,11 +908,13 @@ function merge(other) {
   }
   return n;
 }
-async function syncSend() {
+async function syncSend(full) {
   const data = { format: 'oila-byudjeti', v: 1, kim: me(), at: new Date().toISOString() };
   COLS.forEach(c => data[c] = DB[c]);
+  if (full === true) { const { pin, sir_h, sir_q, bio, tg_token, tg_chat_id, pin_err, pin_until, ...rest } = DB.settings; data.settings = rest; }
   const ok = await Platform.saveFile(`oila_byudjeti_${me().replace(/[^\p{L}\p{N}]+/gu, '_')}_${ymd(today())}.json`, 'application/json', JSON.stringify(data), t('app'));
   if (ok) { DB.settings.sync_oxirgi = `${fmtDay(today())}`; DB.settings.sync_ts = Date.now(); await persist(); render(); }
+  return ok;
 }
 async function syncGet() {
   const f = await Platform.pickFile('.json,application/json'); if (!f) return;
@@ -1050,7 +1065,7 @@ function drawLock(shake) {
     const bad = shake && PIN.mode === 'unlock';
     $('#lock').innerHTML = `<div class="lock">${PIN.mode === 'unlock' ? `<div class="quote">${quoteOfOpen()}</div>` : ''}<div class="mk">💰</div><h2>${title}</h2><div class="dots ${shake ? 'shake' : ''} ${bad ? 'bad' : ''}">${[0, 1, 2, 3].map(i => `<i class="${i < PIN.buf.length || bad ? 'f' : ''}"></i>`).join('')}</div>
      <div class="lmsg ${wait || PIN.err ? 'neg' : ''}" id="lw">${wait ? t('pin_wait', { n: wait }) : PIN.err || '&nbsp;'}</div>
-     <div class="kpad ${wait ? 'off' : ''}">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => `<button data-k="${n}" ${wait ? 'disabled' : ''}>${n}</button>`).join('')}<button class="e" data-k="x">${PIN.mode === 'unlock' ? t('pin_forgot') : t('cancel')}</button><button data-k="0" ${wait ? 'disabled' : ''}>0</button><button class="e" data-k="b">${PIN.mode === 'unlock' && st.bio && !PIN.buf ? '👆' : '⌫'}</button></div></div>`;
+     <div class="kpad ${wait ? 'off' : ''}">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => `<button data-k="${n}" ${wait ? 'disabled' : ''}>${n}</button>`).join('')}<button class="e" data-k="x">${PIN.mode === 'unlock' && !LOGOUT_PENDING ? t('pin_forgot') : t('cancel')}</button><button data-k="0" ${wait ? 'disabled' : ''}>0</button><button class="e" data-k="b">${PIN.mode === 'unlock' && st.bio && !PIN.buf ? '👆' : '⌫'}</button></div></div>`;
   }
   if (wait) lockTimer = setInterval(() => { const w = lockWait(); if (!w) { PIN.err = ''; return drawLock(); } const e = $('#lw'); if (e) e.textContent = t('pin_wait', { n: w }); }, 1000);
 }
@@ -1065,7 +1080,7 @@ async function pinOk() { DB.settings.pin_err = 0; DB.settings.pin_until = 0; awa
 async function bioUnlock() {
   if (!DB.settings.bio || !$('#lock').innerHTML || PIN.mode !== 'unlock') return;
   const ok = await Platform.bio.auth({ title: t('bio_t'), sub: t('app'), cancel: t('use_pin') });
-  if (ok) { await pinOk(); $('#lock').innerHTML = ''; afterUnlock(); }
+  if (ok) { await pinOk(); if (LOGOUT_PENDING) return finishLogout(); $('#lock').innerHTML = ''; afterUnlock(); }
 }
 async function recoverCheck() {
   if (lockWait()) return;
@@ -1075,6 +1090,7 @@ async function recoverCheck() {
 }
 async function pinKey(k) {
   if (k === 'back') { PIN.mode = 'unlock'; PIN.err = ''; return drawLock(); }
+  if (k === 'x' && LOGOUT_PENDING) { LOGOUT_PENDING = false; $('#lock').innerHTML = ''; return; }
   if (k === 'b') { if (PIN.mode === 'unlock' && DB.settings.bio && !PIN.buf) return bioUnlock(); PIN.buf = PIN.buf.slice(0, -1); return drawLock(); }
   if (k === 'x') {
     if (PIN.mode === 'unlock') {
@@ -1090,7 +1106,7 @@ async function pinKey(k) {
   PIN.buf += k; if (PIN.mode === 'unlock') PIN.err = ''; drawLock();
   if (PIN.buf.length < 4) return;
   const h = await Platform.sha256('ob:' + PIN.buf);
-  if (PIN.mode === 'unlock') { if (h === DB.settings.pin) { await pinOk(); $('#lock').innerHTML = ''; afterUnlock(); } else { PIN.buf = ''; await pinFail(); setTimeout(() => drawLock(true), 120); } return; }
+  if (PIN.mode === 'unlock') { if (h === DB.settings.pin) { await pinOk(); if (LOGOUT_PENDING) return finishLogout(); $('#lock').innerHTML = ''; afterUnlock(); } else { PIN.buf = ''; await pinFail(); setTimeout(() => drawLock(true), 120); } return; }
   if (!PIN.first) { PIN.first = h; PIN.buf = ''; return setTimeout(drawLock, 150); }
   if (PIN.first === h) {
     const wasReset = PIN.mode === 'reset'; DB.settings.pin = h; await pinOk(); await persist(); $('#lock').innerHTML = '';
@@ -1124,7 +1140,8 @@ document.addEventListener('click', async e => {
   if (c('[data-close]') && c('.mh')) return closeModal();
   if (UI.langOpen && !c('.langpop') && !c('[data-act=langmenu]')) { UI.langOpen = false; render(); }
   if ((x = c('[data-lang]'))) { UI.langOpen = false; if (M && $('#amt')) readTx(); DB.settings.til = x.dataset.lang; await persist(); applyTheme(); if (!DB.settings.ism) return onboarding(); render(); if (M && $('#modal').innerHTML && M.amt !== undefined) drawTx(); return; }
-  if ((x = c('[data-pg]'))) { if ($('#modal').innerHTML) closeModal(); UI.page = x.dataset.pg; render(); $('#main') && ($('#main').scrollTop = 0); return; }
+  if ((x = c('[data-setsec]'))) { UI.setSec = x.dataset.setsec; render(); $('#main') && ($('#main').scrollTop = 0); return; }
+  if ((x = c('[data-pg]'))) { if ($('#modal').innerHTML) closeModal(); UI.setSec = null; UI.page = x.dataset.pg; render(); $('#main') && ($('#main').scrollTop = 0); return; }
   if ((x = c('[data-per]'))) { UI.per = x.dataset.per; UI.off = 0; return render(); }
   if ((x = c('[data-off]'))) { UI.off = Math.min(0, UI.off + +x.dataset.off); return render(); }
   if ((x = c('[data-hoff]'))) { UI.homeOff = Math.min(0, UI.homeOff + +x.dataset.hoff); return render(); }
@@ -1224,7 +1241,12 @@ document.addEventListener('click', async e => {
     if (a === 'xlall') return excelExport(null);
     if (a === 'pinset') return showLock('set');
     if (a === 'pinoff') { DB.settings.pin = ''; DB.settings.bio = false; await persist(); render(); return toast(t('pin_off_ok')); }
-    if (a === 'wipe') { if (confirm(t('wipe_q'))) { DB = newDB(); await Platform.save(DB); UI.page = 'home'; render(); } return; }
+    if (a === 'setback') { UI.setSec = null; return render(); }
+    if (a === 'backupfull') return syncSend(true);
+    if (a === 'logout') return logoutFlow();
+    if (a === 'logoutsave') { const ok = await syncSend(true); if (ok === false) return; if (!confirm(t('logout_confirm2'))) return; return doLogout(); }
+    if (a === 'logoutnow') { if (!confirm(t('logout_confirm'))) return; return doLogout(); }
+    if (a === 'obrestore') return obRestore();
     if (a === 'ntest') { const r = await Platform.notify.test('💰 ' + t('app'), t('n_daily_b')); return toast(r.ok ? t('n_test_ok') : r.denied ? t('n_denied') : t('error'), r.ok ? '' : 'bd'); }
     if (a === 'tglink') return tgLink();
     if (a === 'tgcancel') { TG.phase = 'idle'; clearTimeout(TG.timer); return render(); }
@@ -1266,6 +1288,34 @@ function splash() {
   el.addEventListener('click', go); setTimeout(go, 2300);
 }
 
+/* =================== Profildan çiqiş / zaxiradan tiklaş =================== */
+function logoutFlow() {
+  modal(`${mhead('🚪 ' + t('logout'))}<div class="mb">
+   <div class="tip wn"><span>⚠️</span><div>${t('logout_warn')}</div></div>
+   <button class="btn w" data-act="logoutsave">💾 ${t('logout_save')}</button>
+   <button class="btn dng w" data-act="logoutnow">${t('logout_nosave')}</button>
+   <button class="btn alt w" data-close>${t('cancel')}</button></div>`);
+}
+async function doLogout() {
+  if (DB.settings.pin) { closeModal(); PIN = { buf: '', mode: 'unlock', first: '', err: '' }; LOGOUT_PENDING = true; drawLock(); return; }
+  await finishLogout();
+}
+let LOGOUT_PENDING = false;
+async function finishLogout() {
+  LOGOUT_PENDING = false; const til = DB.settings.til; DB = newDB(); DB.settings.til = til; OB = { step: 1, rol: '', soni: 0 };
+  await Platform.save(DB); closeModal(); $('#lock').innerHTML = ''; UI.page = 'home'; UI.setSec = null; render(); toast(t('logged_out'));
+}
+async function obRestore() {
+  const f = await Platform.pickFile('.json,application/json'); if (!f) return;
+  try { const d = JSON.parse(await f.text()); if (d.format !== 'oila-byudjeti') throw 0;
+    const keep = DB.settings; merge(d);
+    if (d.settings && d.settings.ism) DB.settings = { ...keep, ...d.settings };
+    else { const owner = d.kim || (W().find(w => w.egasi) || {}).egasi; if (owner) DB.settings.ism = owner; }
+    if (!DB.settings.ism) throw 1;
+    await persist(); render(); afterUnlock(); toast(t('restored', { k: DB.settings.ism }));
+  } catch (_) { toast(t('bad_file'), 'bd'); }
+}
+
 /* =================== Orqaga tugmasi =================== */
 let lastBack = 0, BIO_OK = false;
 function onBack() {
@@ -1275,6 +1325,7 @@ function onBack() {
     if (PIN.mode === 'set') { lk.innerHTML = ''; return; }
   } else if ($('#modal').innerHTML) { closeModal(); return; }
   else if (DB && !DB.settings.ism) { if (OB.step > 1) { obRead(); OB.step--; onboarding(); return; } }
+  else if (UI.page === 'settings' && UI.setSec) { UI.setSec = null; render(); return; }
   else if (UI.page === 'shop') { if (UI.shopList) UI.shopList = null; else UI.page = 'home'; render(); return; }
   else if (SUB.includes(UI.page)) { UI.page = 'more'; render(); return; }
   else if (UI.page !== 'home') { UI.page = 'home'; render(); $('#main') && ($('#main').scrollTop = 0); return; }

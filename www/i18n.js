@@ -338,3 +338,30 @@ Object.assign(I18N.en, {
   shop_clear: 'Clear history', shop_del_q: 'Delete the list “{n}”?', shop_del_q_tx: 'The list “{n}” and its recorded expenses of {s} will be deleted (from reports too). Continue?',
   shop_clear_q: '{n} past lists and their expenses of {s} will be deleted (from reports too). Continue?',
 });
+Object.assign(I18N.uz, {
+  ob_restore: 'Avval foydalanganmisiz? Zaxiradan tiklaş', fam_n: '{n} kişi', wal_n: '{n} ta hamyon', cat_n: '{a} xarajat · {b} daromad', on: 'Yoqilgan', off: 'Öçirilgan',
+  tg_title: 'Telegram hisobot', tg_not: 'Ulanmagan', bio_short: 'barmoq izi', data_sub: 'Excel · zaxira · tiklaş', restore: 'Zaxiradan tiklaş', restore_s: 'Saqlangan zaxira fayldan maʼlumotlarni qaytariş',
+  logout: 'Profildan çiqiş', logout_s: 'Maʼlumotlar şu telefondan öçiriladi', logout_btn: 'Çiqiş', lang_t: 'Til', theme_t: 'Mavzu',
+  logout_warn: 'Maʼlumotlar faqat şu telefonda saqlanadi. Çiqsangiz, ular öçiriladi. Keyin qaytarib oliş uçun avval zaxira nusxa saqlang.',
+  logout_save: 'Zaxira saqlab çiqiş', logout_nosave: 'Saqlamasdan çiqiş', logout_confirm: 'Barça maʼlumotlar öçiriladi va qaytarib bölmaydi. Çiqilsinmi?', logout_confirm2: 'Zaxira fayl saqlandimi? Endi profildan çiqilsinmi?',
+  logged_out: 'Profildan çiqildi', restored: 'Maʼlumotlar tiklandi — xuş kelibsiz, {k}!',
+});
+Object.assign(I18N.ru, {
+  ob_restore: 'Уже пользовались? Восстановить из копии', fam_n: '{n} чел.', wal_n: 'Кошельков: {n}', cat_n: '{a} расход · {b} доход', on: 'Включено', off: 'Выключено',
+  tg_title: 'Отчёт в Telegram', tg_not: 'Не подключено', bio_short: 'отпечаток', data_sub: 'Excel · копия · восстановление', restore: 'Восстановить из копии', restore_s: 'Вернуть данные из сохранённого файла копии',
+  logout: 'Выйти из профиля', logout_s: 'Данные будут удалены с этого телефона', logout_btn: 'Выйти', lang_t: 'Язык', theme_t: 'Тема',
+  logout_warn: 'Данные хранятся только на этом телефоне. При выходе они удалятся. Чтобы потом вернуть их, сначала сохраните резервную копию.',
+  logout_save: 'Сохранить копию и выйти', logout_nosave: 'Выйти без сохранения', logout_confirm: 'Все данные будут удалены без возможности восстановления. Выйти?', logout_confirm2: 'Копия сохранена? Выйти из профиля?',
+  logged_out: 'Вы вышли из профиля', restored: 'Данные восстановлены — добро пожаловать, {k}!',
+});
+Object.assign(I18N.en, {
+  ob_restore: 'Used it before? Restore from backup', fam_n: '{n} people', wal_n: '{n} wallets', cat_n: '{a} expense · {b} income', on: 'On', off: 'Off',
+  tg_title: 'Telegram report', tg_not: 'Not connected', bio_short: 'fingerprint', data_sub: 'Excel · backup · restore', restore: 'Restore from backup', restore_s: 'Bring data back from a saved backup file',
+  logout: 'Sign out of profile', logout_s: 'Data will be removed from this phone', logout_btn: 'Sign out', lang_t: 'Language', theme_t: 'Theme',
+  logout_warn: 'Your data is stored only on this phone. Signing out deletes it. Save a backup first to get it back later.',
+  logout_save: 'Save backup and sign out', logout_nosave: 'Sign out without saving', logout_confirm: 'All data will be deleted permanently. Sign out?', logout_confirm2: 'Was the backup saved? Sign out now?',
+  logged_out: 'Signed out', restored: 'Data restored — welcome back, {k}!',
+});
+Object.assign(I18N.uz, { backup_s: 'Barça maʼlumot va profil bitta faylda. Yangi telefonda «Zaxiradan tiklaş» orqali qaytarasiz' });
+Object.assign(I18N.ru, { backup_s: 'Все данные и профиль в одном файле. На новом телефоне — «Восстановить из копии»' });
+Object.assign(I18N.en, { backup_s: 'All data and profile in one file. On a new phone use “Restore from backup”' });
