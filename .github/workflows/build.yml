@@ -5,7 +5,7 @@ on:
     branches: [main]
   workflow_dispatch:
   schedule:
-    - cron: '20 3,13 * * *'   # har kuni 08:20 va 18:20 (Toşkent) — valyuta kurslarini yangilaş
+    - cron: '5 4,8,13 * * *'   # har kuni 09:05, 13:05 va 18:05 (Toşkent) — Markaziy bank va banklar kurslarini yangilaş
 
 permissions:
   contents: write
@@ -41,6 +41,7 @@ jobs:
           OWNER="${GITHUB_REPOSITORY_OWNER,,}"; REPO="${GITHUB_REPOSITORY#*/}"
           echo "window.APP_CONFIG={owner:'$OWNER',repo:'$REPO',pages:'https://$OWNER.github.io/$REPO/'};" > www/config.js
           node scripts/fetch-rates.js || echo "::warning::Kurslarni olib bölmadi"
+          node scripts/fetch-banks.js || echo "::warning::Banklar kursini olib bölmadi"
 
       - name: Kutubxonalar
         run: npm install
@@ -105,6 +106,7 @@ jobs:
           OWNER="${GITHUB_REPOSITORY_OWNER,,}"; REPO="${GITHUB_REPOSITORY#*/}"
           echo "window.APP_CONFIG={owner:'$OWNER',repo:'$REPO',pages:'https://$OWNER.github.io/$REPO/'};" > www/config.js
           node scripts/fetch-rates.js || echo "::warning::Kurslarni olib bölmadi"
+          node scripts/fetch-banks.js || echo "::warning::Banklar kursini olib bölmadi"
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v5
         with:
