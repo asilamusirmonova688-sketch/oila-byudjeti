@@ -26,3 +26,12 @@ if (!g.includes('signingConfigs {')) {
 }
 fs.writeFileSync(gr, g);
 console.log('Android patched: versionCode', code, 'version', ver);
+
+// Bildirişnoma uçun oq hamyon belgisi
+const path = require('path');
+const src = 'assets/notif';
+if (fs.existsSync(src)) for (const d of fs.readdirSync(src)) {
+  const to = path.join('android/app/src/main/res', d); fs.mkdirSync(to, { recursive: true });
+  fs.copyFileSync(path.join(src, d, 'ic_stat_wallet.png'), path.join(to, 'ic_stat_wallet.png'));
+}
+console.log('Notification icon copied');
