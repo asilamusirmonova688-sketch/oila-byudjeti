@@ -5,6 +5,17 @@ let m = fs.readFileSync(man, 'utf8');
 for (const p of ['POST_NOTIFICATIONS', 'RECEIVE_BOOT_COMPLETED', 'WAKE_LOCK', 'USE_BIOMETRIC', 'VIBRATE']) {
   if (!m.includes(`android.permission.${p}"`)) m = m.replace('</manifest>', `    <uses-permission android:name="android.permission.${p}" />\n</manifest>`);
 }
+// Telegram va boşqa ilovalardan .json faylni «Oila byudjeti bilan oçiş»
+if (!m.includes('application/json')) {
+  m = m.replace('</intent-filter>', `</intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="application/json" />
+            </intent-filter>`);
+}
 fs.writeFileSync(man, m);
 
 const gr = 'android/app/build.gradle';
