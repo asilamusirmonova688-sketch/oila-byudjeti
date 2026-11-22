@@ -365,3 +365,6 @@ Object.assign(I18N.en, {
 Object.assign(I18N.uz, { backup_s: 'Barça maʼlumot va profil bitta faylda. Yangi telefonda «Zaxiradan tiklaş» orqali qaytarasiz' });
 Object.assign(I18N.ru, { backup_s: 'Все данные и профиль в одном файле. На новом телефоне — «Восстановить из копии»' });
 Object.assign(I18N.en, { backup_s: 'All data and profile in one file. On a new phone use “Restore from backup”' });
+Object.assign(I18N.uz, { cv_give: 'Berasiz', cv_get: 'Olasiz', cv_note: 'Markaziy bank kursi böyiça. Bank va ayirboşlaş şoxobçalarida kurs biroz farq qilişi mumkin.' });
+Object.assign(I18N.ru, { cv_give: 'Отдаёте', cv_get: 'Получаете', cv_note: 'По курсу Центрального банка. В банках и обменных пунктах курс может немного отличаться.' });
+Object.assign(I18N.en, { cv_give: 'You give', cv_get: 'You get', cv_note: 'At the Central Bank rate. Banks and exchange offices may differ slightly.' });

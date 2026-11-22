@@ -214,7 +214,7 @@ const perSeg = () => `<div class="seg full">${['week', 'month', 'quarter', 'year
 const SUB = ['rates', 'learn', 'settings', 'feedback'];
 const FEEDBACK_TG = 'bsp3221';
 let FB = { type: 'idea', t: '', img: null };
-const APPV = '1.7';
+const APPV = '1.8';
 function devInfo() { const u = navigator.userAgent, a = u.match(/Android [\d.]+/), m = u.match(/;\s*([^;)]+)\s+Build/), i = u.match(/iPhone OS [\d_]+/);
   return [a ? a[0] : i ? i[0].replace(/_/g, '.') : (u.match(/Windows NT [\d.]+|Mac OS X [\d_]+/) || ['?'])[0], m ? m[1] : '', Platform.native ? 'APK' : 'Web'].filter(Boolean).join(' · '); }
 function pageFeedback() {
@@ -275,17 +275,28 @@ function pageMore() {
 }
 
 /* ---------- Valyuta kurslari ---------- */
-let CONV = { a: '100', c: 'USD', rev: false, q: '' };
+let CONV = { a: '100', f: 'USD', to: 'UZS', q: '', init: false };
+const FLAG = c => c === 'EUR' ? '🇪🇺' : c === 'UZS' ? '🇺🇿' : /^X/.test(c) ? '🌐' : String.fromCodePoint(...[...c.slice(0, 2)].map(ch => 0x1F1A5 + ch.charCodeAt(0)));
+const uzsOf = c => c === 'UZS' ? 1 : rateOf(c);
+const fmtCv = (n, c) => { const d = c === 'UZS' && Math.abs(n) >= 100 ? 0 : Math.abs(n) >= 1 ? 2 : 4; return sp(n.toFixed(d).split('.')[0]) + (d ? ',' + n.toFixed(d).split('.')[1] : ''); };
+function convSave() { DB.settings.conv = { f: CONV.f, to: CONV.to }; Platform.save(DB); }
 function pageRates() {
   const R = DB.rates;
   const head = `<div class="card"><div class="ch"><div><h2>🏦 ${t('cbu')}</h2><p>${R ? t('rates_date', { d: esc(R.date || '') }) : t('rates_none')}</p></div><button class="btn sm alt" data-act="ratesref">${ic('swap')}${t('refresh')}</button></div>
    ${R ? '' : `<div class="tip wn"><span>⚠️</span><div>${t('rates_off')}</div></div><div class="fld" style="margin-top:10px"><label>${t('rate_manual')}</label><input id="setRate" inputmode="decimal" value="${sp(DB.settings.kurs)}"></div>`}</div>`;
   if (!R) return head;
-  const r = rateOf(CONV.c), a = parseAmt(CONV.a), res = CONV.rev ? (r ? a / r : 0) : a * r;
-  const conv = `<div class="card"><div class="ch"><h2>🧮 ${t('calc')}</h2></div>
-   <div class="g2"><div class="fld"><label>${CONV.rev ? t('sum') : esc(CONV.c)}</label><input id="cva" inputmode="decimal" value="${esc(fmtInput(CONV.a))}"></div>
-   <div class="fld"><label>${t('currency')}</label><select id="cvc">${CURS().filter(c => c !== 'UZS').map(c => `<option ${c === CONV.c ? 'selected' : ''} value="${c}">${c} — ${esc(curName(c))}</option>`).join('')}</select></div></div>
-   <div style="display:flex;align-items:center;gap:10px;margin-top:12px"><button class="ib" data-act="cvswap">${ic('swap')}</button><b class="num" style="font-family:var(--fd);font-size:22px">= ${CONV.rev ? fmt(res, CONV.c) : fmt(res)}</b></div></div>`;
+  if (!CONV.init) { CONV.init = true; const sv = DB.settings.conv; if (sv && sv.f) { CONV.f = sv.f; CONV.to = sv.to || 'UZS'; } }
+  const cs = CURS(); if (!cs.includes(CONV.f)) CONV.f = 'USD'; if (!cs.includes(CONV.to)) CONV.to = 'UZS';
+  const rf = uzsOf(CONV.f), rt = uzsOf(CONV.to), a = parseAmt(CONV.a), res = rt ? a * rf / rt : 0;
+  const opts = sel => cs.map(c => `<option ${c === sel ? 'selected' : ''} value="${c}">${FLAG(c)} ${c} — ${esc(curName(c))}</option>`).join('');
+  const quick = ['USD', 'EUR', 'RUB', 'KZT', 'CNY', 'TRY'].filter(c => cs.includes(c));
+  const conv = `<div class="card cvc"><div class="ch"><h2>🧮 ${t('calc')}</h2></div>
+   <div class="chips" style="flex-wrap:wrap;margin-bottom:12px">${quick.map(c => `<button class="chip ${CONV.f === c ? 'on' : ''}" data-cvq="${c}">${FLAG(c)} ${c}</button>`).join('')}</div>
+   <div class="cvbox"><small>${t('cv_give')}</small><div class="cvrow"><select id="cvf">${opts(CONV.f)}</select><input id="cva" inputmode="decimal" value="${esc(fmtInput(CONV.a))}" aria-label="${t('sum')}"></div></div>
+   <div class="cvsw"><button class="ib" data-act="cvswap" aria-label="swap">${ic('swap')}</button></div>
+   <div class="cvbox got"><small>${t('cv_get')}</small><div class="cvrow"><select id="cvt">${opts(CONV.to)}</select><b class="num">${fmtCv(res, CONV.to)}</b></div></div>
+   <div class="small" style="margin-top:12px;display:grid;gap:4px"><span>1 ${CONV.f} = <b>${fmtCv(rf / rt, CONV.to)}</b> ${CONV.to}</span><span>1 ${CONV.to} = <b>${fmtCv(rt / rf, CONV.f)}</b> ${CONV.f}</span></div>
+   <div class="small muted" style="margin-top:8px">${t('cv_note')}</div></div>`;
   const q = CONV.q.trim().toLowerCase();
   const top = ['USD', 'EUR', 'RUB', 'GBP', 'CNY', 'KZT', 'TRY', 'JPY'];
   const list = [...R.list].sort((x, y) => { const i = top.indexOf(x.c), j = top.indexOf(y.c); return (i < 0 ? 99 : i) - (j < 0 ? 99 : j) || x.c.localeCompare(y.c); })
@@ -1185,7 +1196,8 @@ document.addEventListener('click', async e => {
     if (j < 0 || j >= ws.length) return; [ws[i], ws[j]] = [ws[j], ws[i]]; ws.forEach((w, k) => { if (w.tartib !== k) { w.tartib = k; touch(w); } }); await persist(); return render(); }
   if ((x = c('[data-lesson]'))) return openLesson(x.dataset.lesson);
   if ((x = c('[data-qa]'))) { if (QZ.picked != null) return; QZ.picked = +x.dataset.qa; const q = (LESSONS[L()] || LESSONS.uz).find(z => z.id === QZ.id).q[QZ.i]; if (QZ.picked === q.c) QZ.score++; return drawQuiz(); }
-  if ((x = c('[data-rc]'))) { CONV.c = x.dataset.rc; render(); $('#main').scrollTop = 0; return; }
+  if ((x = c('[data-rc]'))) { CONV.f = x.dataset.rc; if (CONV.to === CONV.f) CONV.to = 'UZS'; convSave(); render(); $('#main').scrollTop = 0; return; }
+  if ((x = c('[data-cvq]'))) { CONV.f = x.dataset.cvq; if (CONV.to === CONV.f) CONV.to = 'UZS'; convSave(); return render(); }
   if ((x = c('[data-cat]'))) return openCat(x.dataset.cat);
   if ((x = c('[data-del]'))) { const [col, id, sub] = x.dataset.del.split(':'); if (!confirm(col === 'goals' ? t('goal_del_q') : t('del_q'))) return;
     if (col === 'shopit') { const l = DB.lists.find(z => z.id === id); if (l) upsert('lists', { ...l, items: l.items.filter(i => i.id !== sub) }); await persist(); closeModal(); render(); return toast(t('deleted')); }
@@ -1204,7 +1216,7 @@ document.addEventListener('click', async e => {
       formModal('🐷 ' + t('plan_t'), `<div class="small muted">${t('plan_help')}</div><div class="chips">${[10, 15, 20, 25, 30].map(v => `<button class="chip ${v === p ? 'on' : ''}" data-pct="${v}">${v}%</button>`).join('')}</div>
         <div class="fld"><label>${t('plan_pct')}</label><input id="fp" type="number" min="0" max="90" value="${p}"></div>`, async () => { DB.settings.tejash_foiz = Math.max(0, Math.min(90, +val('fp') || 0)); await persist(); closeModal(); render(); toast(t('saved')); }); return; }
     if (a === 'ratesref') { toast(t('loading')); const ok = await fetchRates(true); if (!ok) toast(t('rates_fail'), 'bd'); else toast(t('saved')); return; }
-    if (a === 'cvswap') { CONV.rev = !CONV.rev; return render(); }
+    if (a === 'cvswap') { [CONV.f, CONV.to] = [CONV.to, CONV.f]; convSave(); return render(); }
     if (a === 'quizstart') { QZ = { id: x.dataset.lid, i: 0, score: 0, picked: null }; return drawQuiz(); }
     if (a === 'quiznext') { QZ.i++; QZ.picked = null; return drawQuiz(); }
     if (a === 'quizclose') { closeModal(); return render(); }
@@ -1269,7 +1281,7 @@ document.addEventListener('input', e => {
 document.addEventListener('change', async e => {
   const el = e.target;
   if (el.id === 'who') { UI.who = el.value; return render(); }
-  if (el.id === 'cvc') { CONV.c = el.value; return render(); }
+  if (el.id === 'cvf' || el.id === 'cvt') { CONV[el.id === 'cvf' ? 'f' : 'to'] = el.value; convSave(); return render(); }
   if (el.id === 'setYear') { const v = +el.value; if (v >= 1920 && v <= new Date().getFullYear() - 5) { DB.settings.yil = v; await persist(); return toast(t('saved')); } return toast(t('e_year'), 'bd'); }
   if (el.id === 'setCity') { DB.settings.shahar = el.value.trim(); await persist(); return toast(t('saved')); }
   if (el.id === 'setName' && el.value.trim()) { DB.settings.ism = el.value.trim(); await persist(); return toast(t('saved')); }
