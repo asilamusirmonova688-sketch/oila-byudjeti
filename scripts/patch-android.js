@@ -2,7 +2,7 @@
 const fs = require('fs');
 const man = 'android/app/src/main/AndroidManifest.xml';
 let m = fs.readFileSync(man, 'utf8');
-for (const p of ['POST_NOTIFICATIONS', 'RECEIVE_BOOT_COMPLETED', 'WAKE_LOCK']) {
+for (const p of ['POST_NOTIFICATIONS', 'RECEIVE_BOOT_COMPLETED', 'WAKE_LOCK', 'USE_BIOMETRIC', 'VIBRATE']) {
   if (!m.includes(`android.permission.${p}"`)) m = m.replace('</manifest>', `    <uses-permission android:name="android.permission.${p}" />\n</manifest>`);
 }
 fs.writeFileSync(man, m);
@@ -26,3 +26,12 @@ if (!g.includes('signingConfigs {')) {
 }
 fs.writeFileSync(gr, g);
 console.log('Android patched: versionCode', code, 'version', ver);
+
+// Bildirişnoma uçun oq hamyon belgisi (assets/notif-<zichlik>.png)
+const path = require('path');
+for (const d of ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi']) {
+  const f = `assets/notif-${d}.png`; if (!fs.existsSync(f)) continue;
+  const to = path.join('android/app/src/main/res', 'drawable-' + d); fs.mkdirSync(to, { recursive: true });
+  fs.copyFileSync(f, path.join(to, 'ic_stat_wallet.png'));
+}
+console.log('Notification icon copied');
