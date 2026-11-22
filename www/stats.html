@@ -22,6 +22,7 @@ h1{margin:0;font-size:22px}p{margin:0;color:#5d677c;font-size:13px}
  <div class="c"><small>iPhone / brauzer</small><b id="web">…</b></div>
 </div>
 <div class="c"><small>👥 Kunlik faol foydalanuvçilar (söngi 7 kun)</small><div class="bars" id="bars"></div><div style="height:18px"></div></div>
+<div class="c" style="margin-top:14px"><h3 style="margin:0 0 10px">Yoş guruhlari</h3><div id="ages">…</div><p style="font-size:12px;opacity:.7;margin:8px 0 0">Faqat yoş guruhi sanaladi — ism yoki boşqa şaxsiy maʼlumot yuborilmaydi.</p></div>
 <p id="upd"></p>
 </div>
 <script src="config.js"></script>
@@ -42,6 +43,9 @@ const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())
   const vals = await Promise.all(days.map(d => get('dau-' + ymd(d))));
   const mx = Math.max(1, ...vals);
   document.getElementById('bars').innerHTML = vals.map((v, k) => `<div style="height:${v / mx * 100}%"><em>${v}</em><span>${days[k].getDate()}.${pad(days[k].getMonth() + 1)}</span></div>`).join('');
+  const G = [['u18', '18 gaça'], ['18-24', '18–24'], ['25-34', '25–34'], ['35-44', '35–44'], ['45-54', '45–54'], ['55p', '55+']];
+  const gv = await Promise.all(G.map(([k]) => get('age-' + k))), gm = Math.max(1, ...gv);
+  document.getElementById('ages').innerHTML = G.map(([k, l], j) => `<div style="display:flex;align-items:center;gap:10px;margin:6px 0"><span style="width:60px">${l}</span><div style="flex:1;height:12px;border-radius:9px;background:rgba(127,127,127,.15)"><div style="height:100%;width:${gv[j] / gm * 100}%;border-radius:9px;background:#12a37a"></div></div><b style="width:34px;text-align:right">${gv[j]}</b></div>`).join('');
   document.getElementById('upd').textContent = 'Yangilandi: ' + new Date().toLocaleString();
 })();
 </script></body></html>

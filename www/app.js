@@ -39,7 +39,7 @@ const ic = (k, st = '') => `<svg viewBox="0 0 24 24" fill="none" stroke="current
 const DEF_CATS = [
   ['food', '🛒', 'x', 'z'], ['transport', '🚕', 'x', 'z'], ['utility', '💡', 'x', 'z'], ['home', '🏠', 'x', 'z'], ['phone', '📱', 'x', 'z'],
   ['health', '💊', 'x', 'z'], ['kids', '🧸', 'x', 'z'], ['edu', '📚', 'x', 'z'], ['credit', '🏦', 'x', 'z'], ['household', '🧺', 'x', 'z'],
-  ['clothes', '👕', 'x', 'h'], ['cafe', '☕', 'x', 'h'], ['fun', '🎬', 'x', 'h'], ['gifts', '🎁', 'x', 'h'], ['beauty', '💇', 'x', 'h'], ['other', '📦', 'x', 'h'],
+  ['clothes', '👕', 'x', 'h'], ['cafe', '☕', 'x', 'h'], ['fun', '🎬', 'x', 'h'], ['gifts', '🎁', 'x', 'h'], ['relatives', '🤝', 'x', 'h'], ['beauty', '💇', 'x', 'h'], ['other', '📦', 'x', 'h'],
   ['savings', '💰', 'x', 'j'],
   ['salary', '💼', 'd', ''], ['side', '💻', 'd', ''], ['gift_in', '🎁', 'd', ''], ['other_in', '➕', 'd', ''],
 ];
@@ -52,13 +52,13 @@ function newDB() {
   const u = now();
   return {
     v: 1,
-    settings: { til: 'uz', mavzu: 'auto', rang: 'green', ism: '', kurs: 12800, pin: '', eslat: true, eslat_vaqt: '21:00',
+    settings: { ogoh: 80, splash: true, til: 'uz', mavzu: 'auto', rang: 'green', ism: '', kurs: 12800, pin: '', eslat: true, eslat_vaqt: '21:00',
       tg_token: '', tg_bot: '', tg_chat_id: null, tg_chat_nomi: '', tg_haftalik: true, tg_oxirgi: '', sync_oxirgi: '' },
     /* hamyonlar har bir telefonda alohida (id takrorlanmaydi); standart kategoriyalar u:0 —
        şunda sinxronizatsiyada boşqa telefonning standart nusxasi sizning özgarişlaringizni bosib ketmaydi */
     wallets: [['cash', '💵', 'UZS'], ['card', '💳', 'UZS'], ['usd', '💲', 'USD']].map(([k, e, cur]) => ({ id: 'w_' + k + '_' + uid(), k, e, cur, start: 0, u: 0 })),
     cats: DEF_CATS.map(([k, e, tur, g]) => ({ id: 'c_' + k, k, e, tur, g, limit: 0, u: 0 })),
-    tx: [], rec: [], debts: [], goals: [],
+    tx: [], rec: [], debts: [], goals: [], lists: [],
   };
 }
 
@@ -199,14 +199,38 @@ const sw = (k, on, attr = 'data-sw') => `<button class="sw ${on ? 'on' : ''}" ${
 const perNav = r => `<div class="mnav"><button class="ib" data-off="-1">${ic('left')}</button><b>${r.label}</b><button class="ib" data-off="1" ${r.off >= 0 ? 'disabled style="opacity:.35"' : ''}>${ic('right')}</button></div>`;
 const perSeg = () => `<div class="seg full">${['week', 'month', 'quarter', 'year'].map(p => `<button class="${UI.per === p ? 'on' : ''}" data-per="${p}">${t('per_' + p)}</button>`).join('')}</div>`;
 
-const SUB = ['rates', 'learn', 'settings'];
+const SUB = ['rates', 'learn', 'settings', 'feedback'];
+const FEEDBACK_TG = 'bsp3221';
+let FB = { type: 'idea', t: '', img: null };
+const APPV = '1.3';
+function devInfo() { const u = navigator.userAgent, a = u.match(/Android [\d.]+/), m = u.match(/;\s*([^;)]+)\s+Build/), i = u.match(/iPhone OS [\d_]+/);
+  return [a ? a[0] : i ? i[0].replace(/_/g, '.') : (u.match(/Windows NT [\d.]+|Mac OS X [\d_]+/) || ['?'])[0], m ? m[1] : '', Platform.native ? 'APK' : 'Web'].filter(Boolean).join(' · '); }
+function pageFeedback() {
+  return `<div class="card" style="display:grid;gap:14px">
+   <div class="small muted">${t('fb_sub')}</div>
+   <div class="seg full">${[['idea', '💡'], ['bug', '🐞'], ['q', '❓']].map(([k, e]) => `<button class="${FB.type === k ? 'on' : ''}" data-fbt="${k}">${e} ${t('fb_' + k)}</button>`).join('')}</div>
+   <div class="fld"><label>${t('fb_text')}</label><textarea id="fbt" rows="6" maxlength="1500" placeholder="${t('fb_ph_' + FB.type)}">${esc(FB.t)}</textarea></div>
+   ${FB.img ? `<div class="row"><div class="ico sm">🖼️</div><div class="tx"><b>${esc(FB.img.name)}</b><small>${Math.round(FB.img.size / 1024)} KB</small></div><button class="ib pl" data-act="fbimgx">${ic('x')}</button></div>` : `<button class="btn alt sm" data-act="fbimg">🖼️ ${t('fb_img')}</button>`}
+   <button class="btn w" data-act="fbsend">✈️ ${t('fb_send')}</button>
+   <div class="small muted">${t('fb_how', { u: '@' + FEEDBACK_TG })}</div></div>`;
+}
+async function fbSend() {
+  FB.t = ($('#fbt') || {}).value || ''; const txt = FB.t.trim();
+  if (txt.length < 5) { $('#fbt').classList.add('err'); return toast(t('fb_short'), 'bd'); }
+  const msg = `${{ idea: '💡', bug: '🐞', q: '❓' }[FB.type]} ${t('fb_' + FB.type)} — ${t('app')} v${APPV}\n\n${txt}\n\n— ${DB.settings.ism || ''} · ${devInfo()}`;
+  await Platform.copy(msg);
+  if (FB.img) { const ok = await Platform.shareText(t('fb_send'), msg, FB.img); if (ok) { toast(t('fb_pick', { u: '@' + FEEDBACK_TG })); return; } }
+  Platform.openUrl(`https://t.me/${FEEDBACK_TG}?text=${encodeURIComponent(msg)}`);
+  toast(t('fb_copied'));
+  FB.t = ''; FB.img = null; setTimeout(render, 800);
+}
 function render() {
   if (!DB) return;
   if (!DB.settings.ism) return onboarding();
-  const pages = { home: pageHome, tx: pageTx, report: pageReport, plan: pagePlan, more: pageMore, rates: pageRates, learn: pageLearn, settings: pageSettings };
-  const th = document.documentElement.dataset.theme, sub = SUB.includes(UI.page), navOn = sub ? 'more' : UI.page;
+  const pages = { shop: pageShop, feedback: pageFeedback, home: pageHome, tx: pageTx, report: pageReport, plan: pagePlan, more: pageMore, rates: pageRates, learn: pageLearn, settings: pageSettings };
+  const th = document.documentElement.dataset.theme, sub = SUB.includes(UI.page), shp = UI.page === 'shop', navOn = sub ? 'more' : shp ? 'home' : UI.page;
   $('#root').innerHTML = `<div class="app"><main class="main" id="main">
-   <header class="top">${sub ? `<button class="ib" data-pg="more">${ic('left')}</button>` : ''}<h1>${t('pg_' + UI.page)}</h1>
+   <header class="top">${sub ? `<button class="ib" data-pg="more">${ic('left')}</button>` : shp ? `<button class="ib" data-act="shopback">${ic('left')}</button>` : ''}<h1>${t('pg_' + UI.page)}</h1>${shp ? '' : shopHeaderBtn()}
     <div class="seg">${LANGS.map(([k]) => `<button class="${L() === k ? 'on' : ''}" data-lang="${k}">${k.toUpperCase()}</button>`).join('')}</div>
     <button class="ib" data-act="theme">${ic(th === 'dark' ? 'sun' : 'moon')}</button></header>
    <div class="page">${pages[UI.page]()}</div></main>
@@ -222,8 +246,9 @@ function pageMore() {
   return `<div class="card" style="padding:6px 12px">
    ${item('rates', '💱', t('pg_rates'), usd ? `1 $ = ${fmt(usd.r)}${DB.rates.date ? ' · ' + DB.rates.date : ''}` : t('rates_sub'))}
    ${item('learn', '📚', t('pg_learn'), t('learn_prog', { a: done, b: L_.length }))}
-   ${item('settings', '⚙️', t('pg_settings'), t('settings_sub'))}</div>
-   <div class="small muted" style="text-align:center">${t('app')} · v1.1</div>`;
+   ${item('settings', '⚙️', t('pg_settings'), t('settings_sub'))}
+   ${item('feedback', '💬', t('pg_feedback'), t('fb_menu'))}</div>
+   <div class="small muted" style="text-align:center">${t('app')} · v${APPV}</div>`;
 }
 
 /* ---------- Valyuta kurslari ---------- */
@@ -247,29 +272,66 @@ function pageRates() {
 }
 
 /* ---------- Boşlaş (birinçi marta) ---------- */
+let OB = { step: 1, rol: '', soni: 0 };
+const ROLES = ['ota', 'ona', 'er', 'xotin', 'farzand', 'boshqa'];
 function onboarding() {
-  $('#root').innerHTML = `<div class="app"><main class="main"><div class="page" style="padding-top:calc(30px + env(safe-area-inset-top))">
-   <div style="text-align:center"><div class="lock" style="position:static;background:none;padding:0;gap:12px"><div class="mk">💰</div><h2>${t('app')}</h2></div><p class="muted">${t('ob_sub')}</p></div>
-   <div class="seg full">${LANGS.map(([k, n]) => `<button class="${L() === k ? 'on' : ''}" data-lang="${k}">${n}</button>`).join('')}</div>
-   <div class="card" style="display:grid;gap:14px">
-    <div class="fld"><label>${t('ob_name')}</label><input id="obName" placeholder="${t('ob_name_ph')}" maxlength="30"></div>
-    ${DB.rates ? '' : `<div class="fld"><label>${t('rate')}</label><input id="obRate" inputmode="decimal" value="${sp(DB.settings.kurs)}"></div>`}
+  const st = DB.settings, y = new Date().getFullYear();
+  const steps = `<div class="obst">${[1, 2, 3].map(i => `<i class="${OB.step >= i ? 'on' : ''}"></i>`).join('')}</div>`;
+  let body;
+  if (OB.step === 1) body = `<div class="card" style="display:grid;gap:14px"><h3 style="margin:0">👤 ${t('ob_s1')}</h3>
+    <div class="fld"><label>${t('ob_name')} *</label><input id="obName" value="${esc(OB.ism || '')}" placeholder="${t('ob_name_ph')}" maxlength="30" autocomplete="off"></div>
+    <div class="fld"><label>${t('ob_year')} *</label><input id="obYear" inputmode="numeric" maxlength="4" value="${esc(OB.yil || '')}" placeholder="${y - 30}"></div>
+    <div><div class="small muted" style="margin-bottom:6px">${t('ob_role')} *</div><div class="chips" style="flex-wrap:wrap">${ROLES.map(r => `<button class="chip ${OB.rol === r ? 'on' : ''}" data-obrol="${r}">${t('role_' + r)}</button>`).join('')}</div></div>
+    <div><div class="small muted" style="margin-bottom:6px">${t('ob_fam')} *</div><div class="chips" style="flex-wrap:wrap">${[1, 2, 3, 4, 5, 6, 7].map(n => `<button class="chip ${OB.soni === n ? 'on' : ''}" data-obsoni="${n}">${n === 7 ? '7+' : n}</button>`).join('')}</div></div>
+    <div class="fld"><label>${t('ob_city')} <span class="muted">(${t('optional')})</span></label><input id="obCity" value="${esc(OB.shahar || '')}" placeholder="${t('ob_city_ph')}" maxlength="30"></div></div>`;
+  else if (OB.step === 2) body = `<div class="card" style="display:grid;gap:14px"><h3 style="margin:0">👛 ${t('ob_s2')}</h3>
+    ${DB.rates ? '' : `<div class="fld"><label>${t('rate')}</label><input id="obRate" inputmode="decimal" value="${sp(st.kurs)}"></div>`}
     <div class="small muted">${t('ob_start')}</div>
-    ${W().map(w => `<div class="fld"><label>${w.e} ${walName(w)} (${unit(w.cur)})</label><input data-ob="${w.id}" inputmode="decimal" placeholder="0"></div>`).join('')}
-   </div>
-   <button class="btn w" data-act="obdone">${t('ob_go')} →</button></div></main></div>`;
+    ${W().map(w => `<div class="fld"><label>${w.e} ${walName(w)} (${unit(w.cur)})</label><input data-ob="${w.id}" inputmode="decimal" placeholder="0" value="${esc((OB.bal || {})[w.id] || '')}"></div>`).join('')}</div>`;
+  else body = `<div class="card" style="display:grid;gap:12px"><h3 style="margin:0">🔒 ${t('ob_s3')}</h3>
+    <div class="tip"><span>🛡️</span><div>${t('ob_priv')}</div></div>
+    <div class="small muted">${t('ob_pin_s')}</div>
+    <button class="btn w" data-act="obpin">🔒 ${t('ob_pin_btn')}</button>
+    <button class="btn alt w" data-act="obfinish">${t('later')}</button></div>`;
+  $('#root').innerHTML = `<div class="app"><main class="main"><div class="page" style="padding-top:calc(24px + env(safe-area-inset-top))">
+   <div style="text-align:center"><div class="lock" style="position:static;background:none;padding:0;gap:10px"><div class="mk">💰</div><h2>${t('app')}</h2></div><p class="muted" style="margin:6px 0 0">${t('ob_sub')}</p></div>
+   ${OB.step === 1 ? `<div class="seg full">${LANGS.map(([k, n]) => `<button class="${L() === k ? 'on' : ''}" data-lang="${k}">${n}</button>`).join('')}</div>` : ''}
+   ${steps}${body}
+   ${OB.step < 3 ? `<div class="g2">${OB.step > 1 ? `<button class="btn alt" data-act="obback">← ${t('back')}</button>` : '<span></span>'}<button class="btn" data-act="obnext">${t('next')} →</button></div>` : `<button class="btn alt sm" data-act="obback" style="justify-self:start">← ${t('back')}</button>`}
+   </div></main></div>`;
+}
+function obRead() {
+  if ($('#obName')) { OB.ism = $('#obName').value.trim(); OB.yil = $('#obYear').value.trim(); OB.shahar = $('#obCity').value.trim(); }
+  if (OB.step === 2) { OB.bal = {}; document.querySelectorAll('[data-ob]').forEach(i => OB.bal[i.dataset.ob] = i.value); if ($('#obRate')) OB.kurs = $('#obRate').value; }
+}
+function obNext() {
+  obRead();
+  if (OB.step === 1) { const y = new Date().getFullYear(), yr = +OB.yil;
+    if (!OB.ism) { $('#obName').classList.add('err'); $('#obName').focus(); return toast(t('e_name'), 'bd'); }
+    if (!(yr >= 1920 && yr <= y - 5)) { $('#obYear').classList.add('err'); $('#obYear').focus(); return toast(t('e_year'), 'bd'); }
+    if (!OB.rol) return toast(t('e_role'), 'bd');
+    if (!OB.soni) return toast(t('e_fam'), 'bd'); }
+  OB.step++; onboarding();
+}
+async function obFinish(withPin) {
+  const st = DB.settings; st.ism = OB.ism; st.yil = +OB.yil; st.rol = OB.rol; st.oila_soni = OB.soni; st.shahar = OB.shahar || '';
+  if (OB.kurs) st.kurs = parseAmt(OB.kurs) || st.kurs;
+  W().forEach(w => { w.start = parseAmt((OB.bal || {})[w.id] || '0'); w.egasi = OB.ism; touch(w); });
+  await persist(); render(); afterUnlock();
+  if (withPin) showLock('set');
 }
 
+const NEAR = () => +DB.settings.ogoh || 80;
 /* ---------- Boş sahifa ---------- */
 function homeAlerts() {
   const alerts = [], d = today();
   for (const c of live(DB.cats).filter(c => c.tur === 'x' && c.limit > 0)) {
     const s = catSpentMonth(c.id), p = s / c.limit * 100;
-    if (p >= 100) alerts.push(['var(--bad)', `${c.e} ${t('al_over', { c: catName(c), p: Math.round(p) })}`]);
-    else if (p >= 80) alerts.push(['var(--warn)', `${c.e} ${t('al_near', { c: catName(c), p: Math.round(p) })}`]);
+    if (p >= 100) alerts.push(['var(--bad)', `${c.e} ${t('al_over', { c: catName(c), p: Math.round(p) })}`, `data-catd="${c.id}" data-src="cur"`]);
+    else if (p >= NEAR()) alerts.push(['var(--warn)', `${c.e} ${t('al_near', { c: catName(c), p: Math.round(p) })}`, `data-catd="${c.id}" data-src="cur"`]);
   }
-  for (const x of recUnpaidThisMonth()) { const due = recDue(x, d), n = Math.round((due - d) / 864e5); if (n <= 3) alerts.push([n < 0 ? 'var(--bad)' : 'var(--warn)', `🔁 ${t(n < 0 ? 'al_rec_late' : n === 0 ? 'al_rec_today' : 'al_rec_soon', { n: esc(x.nom), d: n })} — ${money(x.s, (walById(x.w) || {}).cur)}`]); }
-  for (const x of live(DB.debts).filter(x => !x.yopiq && x.muddat)) { const n = Math.round((pd(x.muddat) - d) / 864e5); if (n <= 3) alerts.push([n < 0 ? 'var(--bad)' : 'var(--warn)', `🤝 ${t(x.tur === 'berdim' ? 'al_debt_in' : 'al_debt_out', { k: esc(x.kim) })}: ${money(debtLeft(x), x.cur)} — ${n < 0 ? t('overdue') : fmtDay(pd(x.muddat))}`]); }
+  for (const x of recUnpaidThisMonth()) { const due = recDue(x, d), n = Math.round((due - d) / 864e5); if (n <= 3) alerts.push([n < 0 ? 'var(--bad)' : 'var(--warn)', `🔁 ${t(n < 0 ? 'al_rec_late' : n === 0 ? 'al_rec_today' : 'al_rec_soon', { n: esc(x.nom), d: n })} — ${money(x.s, (walById(x.w) || {}).cur)}`, `data-recedit="${x.id}"`]); }
+  for (const x of live(DB.debts).filter(x => !x.yopiq && x.muddat)) { const n = Math.round((pd(x.muddat) - d) / 864e5); if (n <= 3) alerts.push([n < 0 ? 'var(--bad)' : 'var(--warn)', `🤝 ${t(x.tur === 'berdim' ? 'al_debt_in' : 'al_debt_out', { k: esc(x.kim) })}: ${money(debtLeft(x), x.cur)} — ${n < 0 ? t('overdue') : fmtDay(pd(x.muddat))}`, `data-debt="${x.id}"`]); }
   return alerts;
 }
 function rateChips() {
@@ -302,8 +364,9 @@ function pageHome() {
    <button class="eye" data-act="eye" aria-label="eye">${hid ? '🙈' : '👁'}</button>
    <div class="mnav" style="margin:-4px 0 10px;position:relative;z-index:1;color:#fff"><button class="ib pl" style="color:#fff" data-hoff="-1">${ic('left')}</button><b style="font-size:13.5px">${r.label}</b><button class="ib pl" style="color:#fff;${cur ? 'opacity:.3' : ''}" data-hoff="1" ${cur ? 'disabled' : ''}>${ic('right')}</button></div>
    <div class="two"><div data-act="incsheet" style="cursor:pointer"><small>↓ ${t('income')} ›</small><b class="num">${money(S.inc)}</b></div><div data-act="expsheet" style="cursor:pointer"><small>↑ ${t('expense')} ›</small><b class="num">${money(S.exp)}</b></div></div></div>
+  ${cur ? shopCard() : ''}
   ${rateChips()}
-  ${alerts.length ? `<div style="display:grid;gap:8px">${alerts.map(([c, m]) => `<div class="alert" style="--c:${c}">${m}</div>`).join('')}</div>` : ''}
+  ${alerts.length ? `<div style="display:grid;gap:8px">${alerts.map(([c, m, a]) => `<div class="alert" style="--c:${c}" ${a || ''}><span style="flex:1">${m}</span>${a ? ic('right') : ''}</div>`).join('')}</div>` : ''}
   ${cur ? planCard() : ''}
   ${cur && H ? `<div class="card"><div class="health">${ringSvg(H.score, H.col)}<div><div class="small muted">${t('health')}</div><div class="lbl" style="color:${H.col}">${t(H.lvl)}</div><div class="tip" style="padding:0;border:0;background:none;margin-top:4px">${H.tip}</div></div></div></div>` : ''}
   ${dailyTip()}
@@ -333,11 +396,13 @@ function typeSheet(tur) {
 }
 
 function catSheet(cid, src) {
-  const rep = src === 'rep', r = rep ? range(UI.per, UI.off) : monthRange(UI.homeOff), who = rep ? UI.who : '';
+  const rep = src === 'rep', r = rep ? range(UI.per, UI.off) : monthRange(src === 'cur' ? 0 : UI.homeOff), who = rep ? UI.who : '';
   const c = catById(cid), xs = stats(r, who).list.filter(x => x.c === cid).sort((a, b) => b.dt.localeCompare(a.dt) || b.u - a.u);
   const tot = xs.reduce((s, x) => s + txUZS(x), 0), inc = c && c.tur === 'd';
   const days = {}; xs.forEach(x => (days[x.dt] = days[x.dt] || []).push(x)); let i = 0;
   modal(`${mhead(`${c ? c.e : '❓'} ${esc(catName(c))} · ${r.label}${who ? ' · 👤 ' + esc(who) : ''}`)}<div class="mb">
+   ${c && c.limit > 0 && c.tur === 'x' && (src === 'cur' || (!rep && UI.homeOff === 0)) ? (() => { const p = tot / c.limit * 100, col = p >= 100 ? 'var(--bad)' : p >= NEAR() ? 'var(--warn)' : 'var(--good)';
+     return `<div class="kp"><small>${t('limit_month')}: ${money(c.limit)}</small><div class="bar" style="margin:8px 0 4px;height:10px"><i style="width:${Math.min(100, p)}%;--c:${col}"></i></div><small style="color:${col}">${Math.round(p)}% · ${p >= 100 ? t('over_by', { s: money(tot - c.limit) }) : t('left_s', { s: money(c.limit - tot) })}</small></div>`; })() : ''}
    <div class="g2"><div class="kp"><small>${t('jami')}</small><b class="num ${inc ? 'pos' : 'neg'}">${money(tot)}</b><small>${t('times', { n: xs.length })}</small></div>
    <div class="kp"><small>${t('avg_one')}</small><b class="num">${money(xs.length ? tot / xs.length : 0)}</b></div></div>
    ${xs.length ? `<div>${Object.entries(days).map(([d, list]) => { const sum = list.reduce((s, x) => s + txUZS(x), 0);
@@ -356,7 +421,7 @@ function txRow(x, i = 0, hid = false) {
   if (x.tur === 'o') { const w2 = walById(x.w2); icon = '🔄'; title = t('transfer'); sub = `${walName(w)} → ${walName(w2)}`; am = F(x.s, w && w.cur); cls = ''; }
   else { icon = c ? c.e : '❓'; title = catName(c); sub = [x.n, walName(w)].filter(Boolean).map(esc).join(' · '); am = F(x.s, w && w.cur, x.tur === 'd'); cls = x.tur === 'd' ? 'pos' : ''; if (x.tur === 'x') am = '−' + am; }
   const who = members().length > 1 && x.kim ? ` · 👤 ${esc(x.kim)}` : '';
-  return `<div class="tr" style="--i:${i}" data-edit="${x.id}"><div class="ico sm" style="--c:${c ? catColor(c) : 'var(--acc)'}">${icon}</div><div class="tx"><b>${esc(title)}</b><small>${sub}${who}</small></div><div class="am num ${cls}">${am}<small>${fmtDay(pd(x.dt))}</small></div></div>`;
+  return `<div class="tr" style="--i:${i}" data-txv="${x.id}"><div class="ico sm" style="--c:${c ? catColor(c) : 'var(--acc)'}">${icon}</div><div class="tx"><b>${esc(title)}</b><small>${sub}${who}</small></div><div class="am num ${cls}">${am}<small>${fmtDay(pd(x.dt))}</small></div></div>`;
 }
 
 /* ---------- Amallar ---------- */
@@ -378,6 +443,29 @@ function pageTx() {
 }
 
 /* ---------- Hisobot ---------- */
+/* rangli aylana + çiziqli yozuvlar */
+function donutSvg(cats, tot) {
+  if (!cats.length || !(tot > 0)) return '';
+  const W_ = 360, H_ = 250, cx = 180, cy = 125, R = 60, C = 2 * Math.PI * R;
+  let sl = [], other = 0;
+  cats.forEach(([id, v]) => { if (v / tot < 0.03 && cats.length > 6) other += v; else sl.push({ id, v }); });
+  if (other) sl.push({ id: null, v: other });
+  let off = 0, a0 = -Math.PI / 2; const rings = [], labs = [];
+  sl.forEach(x => { const len = x.v / tot * C, c = x.id ? catById(x.id) : null, col = x.id ? catColor(c) : 'var(--faint)';
+    rings.push(`<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="${col}" stroke-width="24" stroke-dasharray="${Math.max(0, len - 1.5)} ${C}" stroke-dashoffset="${-off}"/>`);
+    const am = a0 + (x.v / tot) * Math.PI; a0 += (x.v / tot) * 2 * Math.PI; off += len;
+    const nm = x.id ? catName(c) : t('others');
+    labs.push({ col, am, side: Math.cos(am) >= 0 ? 1 : -1, y: cy + Math.sin(am) * (R + 30), txt: (nm.length > 12 ? nm.slice(0, 11) + '…' : nm), pc: Math.round(x.v / tot * 100) }); });
+  for (const sd of [1, -1]) { const g = labs.filter(l => l.side === sd).sort((p, q) => p.y - q.y);
+    for (let i = 0; i < g.length; i++) { g[i].y = Math.max(g[i].y, i ? g[i - 1].y + 17 : 12); }
+    for (let i = g.length - 1; i >= 0; i--) { g[i].y = Math.min(g[i].y, i < g.length - 1 ? g[i + 1].y - 17 : H_ - 8); } }
+  const lines = labs.map(l => { const x1 = cx + Math.cos(l.am) * (R + 13), y1 = cy + Math.sin(l.am) * (R + 13), x2 = cx + Math.cos(l.am) * (R + 26), xe = cx + l.side * (R + 40);
+    const tx = xe + l.side * 4;
+    return `<polyline points="${x1.toFixed(1)},${y1.toFixed(1)} ${x2.toFixed(1)},${l.y.toFixed(1)} ${xe.toFixed(1)},${l.y.toFixed(1)}" fill="none" stroke="${l.col}" stroke-width="1.4"/><circle cx="${x1.toFixed(1)}" cy="${y1.toFixed(1)}" r="2.2" fill="${l.col}"/>
+     <text x="${tx.toFixed(1)}" y="${(l.y + 4).toFixed(1)}" text-anchor="${l.side > 0 ? 'start' : 'end'}" class="dl">${esc(l.txt)} <tspan class="dp">${l.pc}%</tspan></text>`; }).join('');
+  return `<div class="donut"><svg viewBox="0 0 ${W_} ${H_}"><circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="var(--s3)" stroke-width="24"/><g transform="rotate(-90 ${cx} ${cy})">${rings.join('')}</g>${lines}</svg><div class="ctr"><div><b class="num">${short(tot)}</b><small>${t('expense')}</small></div></div></div>`;
+}
+
 function pageReport() {
   const r = range(UI.per, UI.off), S = stats(r, UI.who), P = stats(range(UI.per, UI.off - 1), UI.who), mem = members();
   const bal = S.inc - S.exp, saveP = S.inc > 0 ? Math.round((bal + S.byGroup.j) / S.inc * 100) : null;
@@ -385,8 +473,7 @@ function pageReport() {
   const ce = chg(S.exp, P.exp), ci = chg(S.inc, P.inc);
   const cats = Object.entries(S.byCat).sort((a, b) => b[1] - a[1]);
   const cnt = {}; S.list.forEach(x => cnt[x.c] = (cnt[x.c] || 0) + 1);
-  const R = 80, C = 2 * Math.PI * R; let off = 0;
-  const donut = cats.length ? `<div class="donut"><svg viewBox="0 0 200 200"><circle cx="100" cy="100" r="${R}" fill="none" stroke="var(--s3)" stroke-width="26"/>${cats.map(([id, v]) => { const len = v / S.exp * C; const el = `<circle cx="100" cy="100" r="${R}" fill="none" stroke="${catColor(catById(id))}" stroke-width="26" stroke-dasharray="${Math.max(0, len - 1.5)} ${C}" stroke-dashoffset="${-off}"/>`; off += len; return el; }).join('')}</svg><div class="ctr"><div><b class="num">${short(S.exp)}</b><small>${t('expense')}</small></div></div></div>` : '';
+  const donut = donutSvg(cats, S.exp);
   const pill = (v, a, b, invert) => { if (v === null && !(a - b)) return ''; const dv = a - b, bad = (dv > 0) !== !!invert;
     return `<em style="color:${dv === 0 ? 'var(--muted)' : bad ? 'var(--bad)' : 'var(--good)'}">${dv > 0 ? '▲' : dv < 0 ? '▼' : '='} ${v === null ? t('new_s') : Math.abs(v) + '%'} · ${fmt(dv, 'UZS', true)}</em>`; };
   const changes = [...new Set([...Object.keys(S.byCat), ...Object.keys(P.byCat)])].map(id => ({ id, a: S.byCat[id] || 0, b: P.byCat[id] || 0 })).map(x => ({ ...x, d: x.a - x.b })).filter(x => x.d);
@@ -442,18 +529,19 @@ function pagePlan() {
 function planBudget() {
   const cats = live(DB.cats).filter(c => c.tur === 'x'), withL = cats.filter(c => c.limit > 0), noL = cats.filter(c => !c.limit);
   const tot = withL.reduce((s, c) => s + c.limit, 0), spent = withL.reduce((s, c) => s + catSpentMonth(c.id), 0);
-  return `<div class="tip"><span>💡</span><div>${t('bud_tip')}</div></div>
+  return `<div class="tip"><span>💡</span><div>${t('bud_tip', { p: NEAR() })}</div></div>
+  <div class="card" style="padding:4px 14px"><div class="row" data-act="nearedit" style="cursor:pointer"><div class="ico sm">🔔</div><div class="tx"><b>${t('near_t')}</b><small>${t('near_s', { p: NEAR() })}</small></div><b class="num" style="color:var(--warn)">${NEAR()}%</b><span class="muted" style="display:flex">${ic('right', 'width:18px;height:18px')}</span></div></div>
   ${withL.length ? `<div class="card"><div class="ch"><div><h2>${t('bud_month', { m: monthRange(0).label })}</h2><p>${fmt(spent)} / ${fmt(tot)}</p></div></div>
-   ${withL.map(c => { const s = catSpentMonth(c.id), p = s / c.limit * 100, col = p >= 100 ? 'var(--bad)' : p >= 80 ? 'var(--warn)' : 'var(--good)';
+   ${withL.map(c => { const s = catSpentMonth(c.id), p = s / c.limit * 100, col = p >= 100 ? 'var(--bad)' : p >= NEAR() ? 'var(--warn)' : 'var(--good)';
      return `<div class="row" data-limit="${c.id}" style="cursor:pointer"><div class="ico sm" style="--c:${catColor(c)}">${c.e}</div><div class="tx"><b>${esc(catName(c))}</b><div class="bar" style="margin:6px 0 3px"><i style="width:${Math.min(100, p)}%;--c:${col}"></i></div><small>${fmt(s)} / ${fmt(c.limit)} · ${p >= 100 ? `<span class="neg">${t('over_by', { s: fmt(s - c.limit) })}</span>` : t('left_s', { s: fmt(c.limit - s) })}</small></div><b class="num" style="color:${col}">${Math.round(p)}%</b></div>`; }).join('')}</div>` : ''}
   <div class="card"><div class="ch"><h2>${t('bud_set')}</h2></div>${noL.map(c => `<div class="row" data-limit="${c.id}" style="cursor:pointer"><div class="ico sm" style="--c:${catColor(c)}">${c.e}</div><div class="tx"><b>${esc(catName(c))}</b><small>${t('this_month')}: ${fmt(catSpentMonth(c.id))}</small></div><span class="lnk">+ ${t('limit')}</span></div>`).join('') || `<div class="small muted">${t('bud_all')}</div>`}</div>`;
 }
-const goalSaved = g => live(DB.tx).filter(x => x.g === g.id).reduce((s, x) => s + txUZS(x), 0) + (+g.boshi || 0);
+const goalSaved = g => live(DB.tx).filter(x => x.g === g.id).reduce((s, x) => s + (x.tur === 'd' ? -1 : 1) * txUZS(x), 0) + (+g.boshi || 0);
 function planGoals() {
   const gs = live(DB.goals);
   return `${gs.map(g => { const s = goalSaved(g), p = Math.min(100, s / g.maqsad * 100); let per = '';
       if (g.muddat && s < g.maqsad) { const m = Math.max(1, Math.round((pd(g.muddat) - today()) / (864e5 * 30.4))); per = t('goal_per', { s: fmt((g.maqsad - s) / m), m }); }
-      return `<div class="card"><div class="ch"><h2>${g.e} ${esc(g.nom)}</h2><button class="ib pl" data-goaledit="${g.id}">${ic('edit')}</button></div>
+      return `<div class="card" data-goalv="${g.id}" style="cursor:pointer"><div class="ch"><h2>${g.e} ${esc(g.nom)}</h2><span class="muted">${ic('right')}</span></div>
        <div style="display:flex;justify-content:space-between;align-items:baseline"><b class="num" style="font-family:var(--fd);font-size:20px">${fmt(s)}</b><span class="muted small">/ ${fmt(g.maqsad)}</span></div>
        <div class="bar" style="height:12px;margin:8px 0"><i style="width:${p}%;--c:${p >= 100 ? 'var(--good)' : 'var(--acc)'}"></i></div>
        <div class="small muted">${p >= 100 ? '🎉 ' + t('goal_done') : `${Math.round(p)}% · ${t('left_s', { s: fmt(g.maqsad - s) })}${g.muddat ? ' · ' + t('until', { d: fmtDay(pd(g.muddat)) + ' ' + pd(g.muddat).getFullYear() }) : ''}`}</div>
@@ -493,7 +581,11 @@ function pageSettings() {
   return `
   <div class="card"><div class="ch"><h2>👤 ${t('profile')}</h2></div>
    <div class="fld"><label>${t('ob_name')}</label><input id="setName" value="${esc(s.ism)}" maxlength="30"></div>
-   <div class="small muted" style="margin-top:6px">${t('name_hint')}</div></div>
+   <div class="small muted" style="margin-top:6px">${t('name_hint')}</div>
+   <div class="g2" style="margin-top:12px"><div class="fld"><label>${t('ob_year')}</label><input id="setYear" inputmode="numeric" maxlength="4" value="${esc(s.yil || '')}"></div><div class="fld"><label>${t('ob_city')}</label><input id="setCity" value="${esc(s.shahar || '')}" maxlength="30"></div></div>
+   <div class="small muted" style="margin:10px 0 6px">${t('ob_role')}</div><div class="chips" style="flex-wrap:wrap">${ROLES.map(r => `<button class="chip ${s.rol === r ? 'on' : ''}" data-setrol="${r}">${t('role_' + r)}</button>`).join('')}</div>
+   <div class="small muted" style="margin:10px 0 6px">${t('ob_fam')}</div><div class="chips" style="flex-wrap:wrap">${[1, 2, 3, 4, 5, 6, 7].map(n => `<button class="chip ${+s.oila_soni === n ? 'on' : ''}" data-setsoni="${n}">${n === 7 ? '7+' : n}</button>`).join('')}</div>
+   <div class="small muted" style="margin-top:10px">🛡️ ${t('prof_local')}</div></div>
   <div class="card"><div class="ch"><h2>👛 ${t('wallets')}</h2><button class="lnk" data-act="walnew">+ ${t('add_s')}</button></div>
    ${ws.map((w, i) => `<div class="row"><div class="ico sm">${w.e}</div><div class="tx" data-wal="${w.id}" style="cursor:pointer"><b>${esc(walName(w))}</b><small>${w.cur} · ${fmt(balance(w), w.cur)}</small></div>
      <div class="ord"><button class="ib pl" data-wup="${w.id}" ${i === 0 ? 'disabled' : ''}>▲</button><button class="ib pl" data-wdn="${w.id}" ${i === ws.length - 1 ? 'disabled' : ''}>▼</button></div></div>`).join('')}
@@ -513,7 +605,11 @@ function pageSettings() {
    <div class="small muted">${t('n_auto')}</div></div>` : ''}
   ${tgCard()}
   <div class="card"><div class="ch"><h2>🔒 ${t('security')}</h2></div>
-   <div class="row"><div class="tx"><b>${t('pin')}</b><small>${s.pin ? t('pin_on') : t('pin_off')}</small></div><button class="btn sm ${s.pin ? 'alt' : ''}" data-act="${s.pin ? 'pinoff' : 'pinset'}">${s.pin ? t('turn_off') : t('turn_on')}</button></div></div>
+   <div class="row"><div class="tx"><b>${t('pin')}</b><small>${s.pin ? t('pin_on') : t('pin_off')}</small></div><button class="btn sm ${s.pin ? 'alt' : ''}" data-act="${s.pin ? 'pinoff' : 'pinset'}">${s.pin ? t('turn_off') : t('turn_on')}</button></div>
+   ${s.pin ? `<div class="row"><div class="tx"><b>🔑 ${t('sq_t')}</b><small>${s.sir_h ? t('sq_on') : `<span class="neg">${t('sq_off')}</span>`}</small></div><button class="btn sm alt" data-act="secq">${s.sir_h ? t('change') : t('turn_on')}</button></div>` : ''}
+   ${s.pin && BIO_OK ? `<div class="row"><div class="tx"><b>👆 ${t('bio_t')}</b><small>${t('bio_s')}</small></div>${sw('bio', s.bio)}</div>` : ''}
+   <div class="row"><div class="tx"><b>✨ ${t('splash_t')}</b><small>${t('splash_s')}</small></div>${sw('splash', s.splash !== false)}</div>
+   <div class="small muted" style="margin-top:6px">${t('pin_rules')}</div></div>
   <div class="card"><div class="ch"><h2>💾 ${t('data')}</h2></div>
    <div class="row"><div class="tx"><b>📊 ${t('xl_all')}</b><small>${t('xl_all_s')}</small></div><button class="btn sm alt" data-act="xlall">${ic('export')}</button></div>
    <div class="row"><div class="tx"><b>🗄️ ${t('backup')}</b><small>${t('backup_s')}</small></div><button class="btn sm alt" data-act="syncsend">${ic('export')}</button></div>
@@ -523,7 +619,7 @@ function pageSettings() {
    <div style="display:grid;gap:12px"><div class="seg full">${LANGS.map(([k, n]) => `<button class="${L() === k ? 'on' : ''}" data-lang="${k}">${n}</button>`).join('')}</div>
    <div class="seg full">${[['light', 'th_l'], ['dark', 'th_d'], ['auto', 'th_a']].map(([k, l]) => `<button class="${s.mavzu === k ? 'on' : ''}" data-thm="${k}">${t(l)}</button>`).join('')}</div>
    <div class="sws">${COLORS.map(([k, a, b]) => `<button class="swc ${s.rang === k ? 'on' : ''}" data-color="${k}" style="--x1:${a};--x2:${b}"></button>`).join('')}</div></div></div>
-  <div class="small muted" style="text-align:center;padding:4px 0 10px">${t('app')} · v1.1</div>`;
+  <div class="small muted" style="text-align:center;padding:4px 0 10px">${t('app')} · v${APPV}</div>`;
 }
 
 /* ---------- Bilim ---------- */
@@ -568,14 +664,36 @@ function tgCard() {
 
 /* =================== Amal qöşiş / tahrirlaş =================== */
 let M = null;
+function txSheet(id) {
+  const x = DB.tx.find(z => z.id === id); if (!x) return;
+  const w = walById(x.w), c = catById(x.c), cur = w && w.cur, g = x.g && DB.goals.find(q => q.id === x.g);
+  const tl = x.tur === 'd' ? t('income') : x.tur === 'x' ? t('expense') : t('transfer');
+  const big = x.tur === 'o' ? fmt(x.s, cur) : (x.tur === 'd' ? '+' : '−') + fmt(x.s, cur);
+  const rowI = (k, v) => v ? `<div class="kv"><span>${k}</span><b>${v}</b></div>` : '';
+  const d = pd(x.dt);
+  modal(`${mhead(`${x.tur === 'o' ? '🔄' : c ? c.e : '❓'} ${esc(x.tur === 'o' ? t('transfer') : catName(c))}`)}<div class="mb">
+   <div class="kp" style="text-align:center"><small>${tl}</small><b class="num ${x.tur === 'd' ? 'pos' : x.tur === 'x' ? 'neg' : ''}" style="font-size:26px">${big}</b>${cur && cur !== 'UZS' ? `<small>≈ ${fmt(txUZS(x))}</small>` : ''}</div>
+   <div class="kvs">
+    ${rowI(t('date'), `${fmtDay(d)} ${d.getFullYear()}, ${I18N[L()].wd[(d.getDay() + 6) % 7]}`)}
+    ${rowI(x.tur === 'o' ? t('from') : t('wallet'), w ? `${w.e} ${esc(walName(w))}` : '')}
+    ${x.tur === 'o' ? rowI(t('to'), (() => { const w2 = walById(x.w2); return w2 ? `${w2.e} ${esc(walName(w2))}${x.s2 != null ? ` · ${fmt(x.s2, w2.cur)}` : ''}` : ''; })()) : ''}
+    ${x.tur !== 'o' ? rowI(t('category'), c ? `${c.e} ${esc(catName(c))}` : '') : ''}
+    ${g ? rowI(t('goal'), `${g.e} ${esc(g.nom)}`) : ''}
+    ${rowI(t('who'), x.kim ? '👤 ' + esc(x.kim) : '')}
+    ${rowI(t('note'), x.n ? esc(x.n) : '')}
+    ${rowI(t('added_at'), x.u ? new Date(x.u).toLocaleString(L() === 'en' ? 'en-GB' : 'ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '')}
+   </div></div>
+   <div class="mf"><button class="btn dng" data-del="tx:${x.id}" style="flex:0 0 auto" aria-label="del">${ic('trash')}</button><button class="btn alt" data-dup="${x.id}">🔁 ${t('dup')}</button><button class="btn" data-edit="${x.id}">${ic('edit')}${t('edit')}</button></div>`);
+}
 function openTx(id, preset) {
   const x = id ? DB.tx.find(z => z.id === id) : null;
   const mine = W().filter(w => !w.egasi || w.egasi === DB.settings.ism);
   const lastW = (live(DB.tx).filter(x => x.kim === me() && walById(x.w) && !walById(x.w).d).slice(-1)[0] || {}).w || (mine[0] || W()[0] || {}).id;
-  M = x ? { ...x, amt: String(x.s), amt2: x.s2 != null ? String(x.s2) : '' } : { id: null, tur: 'x', amt: '', c: '', w: lastW, w2: '', dt: ymd(today()), n: '', kim: me(), amt2: '', ...(preset || {}) };
+  M = x ? { ...x, amt: String(x.s), amt2: x.s2 != null ? String(x.s2) : '', kimga: (() => { const w2 = walById(x.w2); return w2 && w2.egasi && w2.egasi !== DB.settings.ism ? w2.egasi : ''; })() } : { id: null, tur: 'x', amt: '', c: '', w: lastW, w2: '', dt: ymd(today()), n: '', kim: me(), amt2: '', ...(preset || {}) };
   drawTx();
   setTimeout(() => { const a = $('#amt'); if (a && !x) a.focus(); }, 80);
 }
+function famMembers() { const me_ = DB.settings.ism; return [...new Set(W().map(w => w.egasi).filter(e => e && e !== me_))]; }
 function readTx() { if (!$('#amt')) return; M.amt = $('#amt').value; M.dt = $('#txdt').value; M.n = $('#txn').value; if ($('#amt2')) M.amt2 = $('#amt2').value; }
 function drawTx() {
   const m = M, w = walById(m.w), w2 = walById(m.w2), cats = live(DB.cats).filter(c => c.tur === m.tur);
@@ -587,7 +705,8 @@ function drawTx() {
    <div class="amt ${m.tur}"><input id="amt" inputmode="decimal" placeholder="0" value="${esc(fmtInput(m.amt))}" autocomplete="off"><span>${unit(w && w.cur)}</span></div>
    ${m.tur !== 'o' ? `<div class="cg">${cats.map(c => `<button class="${m.c === c.id ? 'on' : ''}" data-pickc="${c.id}"><span>${c.e}</span>${esc(catName(c))}</button>`).join('')}<button data-act="catnew"><span>➕</span>${t('new_cat')}</button></div>` : ''}
    <div><div class="small muted" style="margin-bottom:6px">${m.tur === 'o' ? t('from') : t('wallet')}</div><div class="chips">${W().map(z => `<button class="chip ${m.w === z.id ? 'on' : ''}" data-pickw="${z.id}">${z.e} ${esc(walName(z))}</button>`).join('')}</div></div>
-   ${m.tur === 'o' ? `<div><div class="small muted" style="margin-bottom:6px">${t('to')}</div><div class="chips">${W().filter(z => z.id !== m.w).map(z => `<button class="chip ${m.w2 === z.id ? 'on' : ''}" data-pickw2="${z.id}">${z.e} ${esc(walName(z))}</button>`).join('')}</div></div>
+   ${m.tur === 'o' ? `<div><div class="small muted" style="margin-bottom:6px">${t('to_whom')}</div><div class="chips" style="flex-wrap:wrap"><button class="chip ${!m.kimga ? 'on' : ''}" data-kimga="">🙋 ${t('to_me')}</button>${famMembers().map(n => `<button class="chip ${m.kimga === n ? 'on' : ''}" data-kimga="${esc(n)}">👤 ${esc(n)}</button>`).join('')}${famMembers().length ? '' : `<button class="chip" data-kimga="?">👨‍👩‍👧 ${t('fam_member')}</button>`}</div></div>
+     <div><div class="small muted" style="margin-bottom:6px">${m.kimga ? t('to_wallet_of', { n: esc(m.kimga) }) : t('to')}</div><div class="chips" style="flex-wrap:wrap">${W().filter(z => z.id !== m.w && (m.kimga ? z.egasi === m.kimga : (!z.egasi || z.egasi === DB.settings.ism))).map(z => `<button class="chip ${m.w2 === z.id ? 'on' : ''}" data-pickw2="${z.id}">${z.e} ${esc(m.kimga ? (z.nom || t('w_' + z.k)) : walName(z))}</button>`).join('')}</div></div>
      ${cross ? `<div class="fld"><label>${t('amt_received', { c: unit(w2.cur) })}</label><input id="amt2" inputmode="decimal" value="${esc(fmtInput(m.amt2))}" placeholder="${esc(fmtInput(String(autoConv(m))))}"></div>` : ''}` : ''}
    <div class="g2"><div class="fld"><label>${t('date')}</label><input type="date" id="txdt" value="${m.dt}"></div><div class="fld"><label>${t('note')}</label><input id="txn" value="${esc(m.n)}" placeholder="${t('note_ph')}" maxlength="80"></div></div>
    ${m.id && m.kim ? `<div class="small muted">👤 ${esc(m.kim)}</div>` : ''}
@@ -604,7 +723,7 @@ async function saveTx() {
   if (m.tur !== 'o') rec.c = m.c; else { rec.w2 = m.w2; const w = walById(m.w), w2 = walById(m.w2); if (w.cur !== w2.cur) rec.s2 = parseAmt(m.amt2) || autoConv(m); }
   if (m.g) rec.g = m.g; if (m.r) rec.r = m.r;
   upsert('tx', rec); await persist(); closeModal(); render();
-  if (rec.tur === 'x') { const c = catById(rec.c); if (c && c.limit > 0) { const p = catSpentMonth(c.id) / c.limit * 100; if (p >= 100) return toast(t('al_over', { c: catName(c), p: Math.round(p) }), 'bd'); if (p >= 80) return toast(t('al_near', { c: catName(c), p: Math.round(p) }), 'wn'); } }
+  if (rec.tur === 'x') { const c = catById(rec.c); if (c && c.limit > 0) { const p = catSpentMonth(c.id) / c.limit * 100; if (p >= 100) return toast(t('al_over', { c: catName(c), p: Math.round(p) }), 'bd'); if (p >= NEAR()) return toast(t('al_near', { c: catName(c), p: Math.round(p) }), 'wn'); } }
   toast(t('saved'));
 }
 
@@ -626,6 +745,12 @@ function openLimit(cid) {
    <div class="fld"><label>${t('limit_month')}</label><input id="flim" inputmode="decimal" value="${c.limit ? esc(fmtInput(String(c.limit))) : ''}" placeholder="0"></div><div class="small muted">${t('limit_hint')}</div>`,
     async () => { c.limit = parseAmt(val('flim')); upsert('cats', c); await persist(); closeModal(); render(); toast(t('saved')); });
 }
+function openNear() {
+  const cur = NEAR();
+  formModal('🔔 ' + t('near_t'), `<div class="small muted">${t('near_q')}</div><div class="chips" style="flex-wrap:wrap">${[50, 60, 70, 80, 90].map(v => `<button class="chip ${cur === v ? 'on' : ''}" data-pct="${v}">${v}%</button>`).join('')}</div>
+   <div class="fld"><label>${t('own_val')} (%)</label><input id="fp" inputmode="numeric" value="${cur}" maxlength="2"></div>`,
+    async () => { const v = Math.round(+val('fp')); if (!(v >= 10 && v <= 99)) return toast(t('near_bad'), 'bd'); DB.settings.ogoh = v; await persist(); closeModal(); render(); toast(t('saved')); });
+}
 function openGoal(id) {
   const g = id ? DB.goals.find(x => x.id === id) : { id: null, nom: '', e: '🎯', maqsad: 0, muddat: '', boshi: 0 };
   formModal(id ? t('goal_edit') : t('goal_new'), `<div class="fld"><label>${t('goal_name')}</label><input id="fn" value="${esc(g.nom)}" placeholder="${t('goal_ph')}"></div>
@@ -635,10 +760,48 @@ function openGoal(id) {
       upsert('goals', { ...g, id: g.id || uid(), nom, maqsad: s, muddat: val('fd'), e: val('fe') || '🎯', boshi: id ? g.boshi : parseAmt(val('fb')) }); await persist(); closeModal(); render(); toast(t('saved')); },
     id ? 'goals:' + id : null);
 }
-function openGoalAdd(id) {
-  const g = DB.goals.find(x => x.id === id);
-  const sav = live(DB.cats).find(c => c.k === 'savings' && c.tur === 'x') || live(DB.cats).find(c => c.g === 'j');
-  openTx(null, { tur: 'x', c: sav ? sav.id : '', g: id, n: g.nom });
+function goalForecast(g) {
+  const xs = live(DB.tx).filter(x => x.g === g.id); if (!xs.length) return null;
+  const first = xs.map(x => pd(x.dt)).sort((a, b) => a - b)[0], months = Math.max(1, (today() - first) / (864e5 * 30.4));
+  const net = xs.reduce((s, x) => s + (x.tur === 'd' ? -1 : 1) * txUZS(x), 0), per = net / months, left = g.maqsad - goalSaved(g);
+  if (left <= 0 || per <= 0) return null;
+  const m = Math.ceil(left / per), d = new Date(today().getFullYear(), today().getMonth() + m, 1);
+  return { per, m, d };
+}
+function goalSheet(id) {
+  const g = DB.goals.find(x => x.id === id); if (!g) return;
+  const s = goalSaved(g), p = Math.min(100, s / g.maqsad * 100), F = goalForecast(g);
+  const xs = live(DB.tx).filter(x => x.g === id).sort((a, b) => b.dt.localeCompare(a.dt) || b.u - a.u);
+  modal(`${mhead(`${g.e} ${esc(g.nom)}`)}<div class="mb">
+   <div class="kp"><div style="display:flex;justify-content:space-between;align-items:baseline"><b class="num" style="font-size:22px">${money(s)}</b><span class="muted small">/ ${money(g.maqsad)}</span></div>
+    <div class="bar" style="height:12px;margin:8px 0"><i style="width:${p}%;--c:${p >= 100 ? 'var(--good)' : 'var(--acc)'}"></i></div>
+    <small>${p >= 100 ? '🎉 ' + t('goal_done') : `${Math.round(p)}% · ${t('left_s', { s: money(g.maqsad - s) })}`}</small></div>
+   ${F && p < 100 ? `<div class="tip"><span>🔮</span><div>${t('goal_fc', { s: money(F.per), m: F.m, d: monName(F.d.getMonth()) + ' ' + F.d.getFullYear() })}</div></div>` : ''}
+   ${g.muddat && p < 100 ? `<div class="small muted">📅 ${t('until', { d: fmtDay(pd(g.muddat)) + ' ' + pd(g.muddat).getFullYear() })}</div>` : ''}
+   <div class="g2"><button class="btn sm" data-goalmoney="${id}" data-dir="in">${ic('plus')}${t('goal_add')}</button><button class="btn sm alt" data-goalmoney="${id}" data-dir="out">➖ ${t('goal_take')}</button></div>
+   <div><div class="small muted" style="margin:4px 0 8px">${t('goal_hist')}${+g.boshi ? ` · ${t('goal_have')}: ${money(+g.boshi)}` : ''}</div>
+    ${xs.length ? xs.map((x, i) => txRow(x, i, DB.settings.yashir)).join('') : `<div class="empty" style="padding:14px"><b>${t('goal_nohist')}</b></div>`}</div></div>
+   <div class="mf"><button class="btn alt" data-goaledit="${id}">${ic('edit')}${t('edit')}</button></div>`);
+}
+function goalSavCat(dir) {
+  if (dir === 'in') return (live(DB.cats).find(c => c.k === 'savings' && c.tur === 'x') || live(DB.cats).find(c => c.g === 'j' && c.tur === 'x') || {}).id;
+  let c = live(DB.cats).find(c => c.k === 'from_goal');
+  if (!c) { c = { id: 'c_from_goal', k: 'from_goal', e: '🏦', tur: 'd', g: 'j', limit: 0 }; upsert('cats', c); }
+  return c.id;
+}
+function openGoalMoney(id, dir, txId) {
+  const g = DB.goals.find(x => x.id === id), x = txId ? DB.tx.find(z => z.id === txId) : null;
+  const mine = W().filter(w => !w.egasi || w.egasi === DB.settings.ism), wsel = x ? x.w : (mine[0] || W()[0] || {}).id;
+  formModal(`${g.e} ${esc(g.nom)} · ${t(dir === 'in' ? 'goal_add' : 'goal_take')}`, `
+   <div class="amt ${dir === 'in' ? 'x' : 'd'}"><input id="gma" inputmode="decimal" placeholder="0" value="${x ? esc(fmtInput(String(x.s))) : ''}" autocomplete="off"><span id="gmu">${unit((walById(wsel) || {}).cur)}</span></div>
+   ${dir === 'out' ? `<div class="small muted">${t('goal_have_now', { s: money(goalSaved(g)) })}</div>` : ''}
+   <div><div class="small muted" style="margin-bottom:6px">${dir === 'in' ? t('from') : t('to')}</div><input type="hidden" id="gmw" value="${wsel}"><div class="chips" style="flex-wrap:wrap">${W().map(z => `<button class="chip ${wsel === z.id ? 'on' : ''}" data-gmw="${z.id}">${z.e} ${esc(walName(z))}</button>`).join('')}</div></div>
+   <div class="g2"><div class="fld"><label>${t('date')}</label><input type="date" id="gmd" value="${x ? x.dt : ymd(today())}"></div><div class="fld"><label>${t('note')}</label><input id="gmn" value="${x ? esc(x.n) : ''}" placeholder="${t('note_ph')}" maxlength="80"></div></div>`,
+    async () => { const a = parseAmt(val('gma')); if (!(a > 0)) { $('#gma').classList.add('err'); return toast(t('e_amt'), 'bd'); }
+      const w = val('gmw'); if (!walById(w)) return toast(t('e_wal'), 'bd');
+      upsert('tx', { ...(x || {}), id: x ? x.id : uid(), tur: dir === 'in' ? 'x' : 'd', c: x ? x.c : goalSavCat(dir), g: id, s: a, w, dt: val('gmd') || ymd(today()), n: val('gmn').trim(), kim: x ? x.kim : me() });
+      await persist(); render(); goalSheet(id); toast(t('saved')); });
+  setTimeout(() => { const e = $('#gma'); if (e && !x) e.focus(); }, 80);
 }
 function openDebt(id) {
   const x = id ? DB.debts.find(z => z.id === id) : { id: null, tur: 'berdim', kim: '', s: 0, cur: 'UZS', dt: ymd(today()), muddat: '', n: '', qaytdi: [] };
@@ -695,7 +858,7 @@ function openCat(id, tur) {
 }
 
 /* =================== Oila sinxronizatsiyasi =================== */
-const COLS = ['wallets', 'cats', 'tx', 'rec', 'debts', 'goals'];
+const COLS = ['wallets', 'cats', 'tx', 'rec', 'debts', 'goals', 'lists'];
 function merge(other) {
   let n = 0;
   for (const col of COLS) {
@@ -801,6 +964,8 @@ function countUsage() {
   const s = DB.settings, d = ymd(today()), hit = k => fetch(COUNTER + ns + '-' + k, { mode: 'cors' }).catch(() => {});
   if (!s.sanaldi) { hit('installs'); hit('installs-' + (Platform.native ? 'android' : 'web')); s.sanaldi = d; }
   if (s.faol_kun !== d) { hit('dau-' + d); s.faol_kun = d; }
+  if (s.yil) { const age = new Date().getFullYear() - s.yil, g = age < 18 ? 'u18' : age < 25 ? '18-24' : age < 35 ? '25-34' : age < 45 ? '35-44' : age < 55 ? '45-54' : '55p';
+    if (s.yosh_guruh !== g) { hit('age-' + g); s.yosh_guruh = g; } }
   Platform.save(DB);
 }
 
@@ -820,27 +985,89 @@ function scheduleNotifications() {
 }
 
 /* =================== PIN =================== */
-let PIN = { buf: '', mode: '', first: '' };
+let PIN = { buf: '', mode: '', first: '', err: '' };
+const SQ = 5;
+const normAns = v => String(v || '').toLowerCase().replace(/[ʼ'‘’`]/g, '').replace(/\s+/g, ' ').trim();
 function showLock(mode) {
-  PIN = { buf: '', mode, first: '' };
+  PIN = { buf: '', mode, first: '', err: '' };
   drawLock();
+  if (mode === 'unlock' && DB.settings.bio) setTimeout(bioUnlock, 350);
 }
+function lockWait() { const u = +DB.settings.pin_until || 0; return Math.max(0, Math.ceil((u - Date.now()) / 1000)); }
+let lockTimer = null;
 function drawLock(shake) {
-  const title = PIN.mode === 'unlock' ? t('pin_enter') : PIN.first ? t('pin_repeat') : t('pin_new');
-  $('#lock').innerHTML = `<div class="lock"><div class="mk">💰</div><h2>${title}</h2><div class="dots ${shake ? 'shake' : ''}">${[0, 1, 2, 3].map(i => `<i class="${i < PIN.buf.length ? 'f' : ''}"></i>`).join('')}</div>
-   <div class="kpad">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => `<button data-k="${n}">${n}</button>`).join('')}<button class="e" data-k="x">${PIN.mode === 'unlock' ? t('pin_forgot') : t('cancel')}</button><button data-k="0">0</button><button class="e" data-k="b">⌫</button></div></div>`;
+  clearInterval(lockTimer);
+  const st = DB.settings, wait = PIN.mode === 'unlock' || PIN.mode === 'recover' ? lockWait() : 0;
+  if (PIN.mode === 'recover') {
+    $('#lock').innerHTML = `<div class="lock"><div class="mk">🔑</div><h2>${t('rec_t')}</h2>
+     <div class="card" style="width:min(340px,100%);display:grid;gap:12px"><b>${t('sq' + st.sir_q)}</b>
+      <div class="fld"><input id="recA" placeholder="${t('sq_ans')}" autocomplete="off" ${wait ? 'disabled' : ''}></div>
+      ${wait ? `<div class="neg small" id="lw">${t('pin_wait', { n: wait })}</div>` : PIN.err ? `<div class="neg small">${PIN.err}</div>` : ''}
+      <button class="btn w" data-act="pinrec" ${wait ? 'disabled' : ''}>${t('check')}</button>
+      <button class="btn alt w sm" data-k="back">← ${t('back')}</button></div></div>`;
+  } else {
+    const title = PIN.mode === 'unlock' ? t('pin_enter') : PIN.first ? t('pin_repeat') : t('pin_new');
+    const bad = shake && PIN.mode === 'unlock';
+    $('#lock').innerHTML = `<div class="lock">${PIN.mode === 'unlock' ? `<div class="quote">${quoteOfOpen()}</div>` : ''}<div class="mk">💰</div><h2>${title}</h2><div class="dots ${shake ? 'shake' : ''} ${bad ? 'bad' : ''}">${[0, 1, 2, 3].map(i => `<i class="${i < PIN.buf.length || bad ? 'f' : ''}"></i>`).join('')}</div>
+     <div class="lmsg ${wait || PIN.err ? 'neg' : ''}" id="lw">${wait ? t('pin_wait', { n: wait }) : PIN.err || '&nbsp;'}</div>
+     <div class="kpad ${wait ? 'off' : ''}">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => `<button data-k="${n}" ${wait ? 'disabled' : ''}>${n}</button>`).join('')}<button class="e" data-k="x">${PIN.mode === 'unlock' ? t('pin_forgot') : t('cancel')}</button><button data-k="0" ${wait ? 'disabled' : ''}>0</button><button class="e" data-k="b">${PIN.mode === 'unlock' && st.bio && !PIN.buf ? '👆' : '⌫'}</button></div></div>`;
+  }
+  if (wait) lockTimer = setInterval(() => { const w = lockWait(); if (!w) { PIN.err = ''; return drawLock(); } const e = $('#lw'); if (e) e.textContent = t('pin_wait', { n: w }); }, 1000);
+}
+async function pinFail() {
+  const st = DB.settings; st.pin_err = (+st.pin_err || 0) + 1; Platform.vibrate(250);
+  const left = 3 - st.pin_err;
+  if (left <= 0) { const steps = [30, 60, 300, 900]; st.pin_until = Date.now() + steps[Math.min(st.pin_err - 3, 3)] * 1000; PIN.err = ''; }
+  else PIN.err = t('pin_bad', { n: left });
+  await Platform.save(DB);
+}
+async function pinOk() { DB.settings.pin_err = 0; DB.settings.pin_until = 0; await Platform.save(DB); }
+async function bioUnlock() {
+  if (!DB.settings.bio || !$('#lock').innerHTML || PIN.mode !== 'unlock') return;
+  const ok = await Platform.bio.auth({ title: t('bio_t'), sub: t('app'), cancel: t('use_pin') });
+  if (ok) { await pinOk(); $('#lock').innerHTML = ''; afterUnlock(); }
+}
+async function recoverCheck() {
+  if (lockWait()) return;
+  const a = normAns(($('#recA') || {}).value); if (!a) return;
+  if (await Platform.sha256('sq:' + a) === DB.settings.sir_h) { await pinOk(); PIN = { buf: '', mode: 'reset', first: '', err: '' }; toast(t('rec_ok')); return drawLock(); }
+  await pinFail(); drawLock(true);
 }
 async function pinKey(k) {
-  if (k === 'b') { PIN.buf = PIN.buf.slice(0, -1); return drawLock(); }
-  if (k === 'x') { if (PIN.mode === 'unlock') { if (confirm(t('pin_forgot_q'))) { DB = newDB(); await Platform.save(DB); $('#lock').innerHTML = ''; render(); } return; } $('#lock').innerHTML = ''; return; }
+  if (k === 'back') { PIN.mode = 'unlock'; PIN.err = ''; return drawLock(); }
+  if (k === 'b') { if (PIN.mode === 'unlock' && DB.settings.bio && !PIN.buf) return bioUnlock(); PIN.buf = PIN.buf.slice(0, -1); return drawLock(); }
+  if (k === 'x') {
+    if (PIN.mode === 'unlock') {
+      if (DB.settings.sir_h) { PIN.mode = 'recover'; PIN.err = ''; return drawLock(); }
+      if (confirm(t('pin_forgot_q')) && confirm(t('pin_forgot_q2'))) { DB = newDB(); OB = { step: 1, rol: '', soni: 0 }; await Platform.save(DB); $('#lock').innerHTML = ''; render(); }
+      return;
+    }
+    if (PIN.mode === 'reset') return; // tiklaşda bekor qilib bölmaydi
+    $('#lock').innerHTML = ''; return;
+  }
+  if (lockWait() && PIN.mode === 'unlock') return;
   if (PIN.buf.length >= 4) return;
-  PIN.buf += k; drawLock();
+  PIN.buf += k; if (PIN.mode === 'unlock') PIN.err = ''; drawLock();
   if (PIN.buf.length < 4) return;
   const h = await Platform.sha256('ob:' + PIN.buf);
-  if (PIN.mode === 'unlock') { if (h === DB.settings.pin) { $('#lock').innerHTML = ''; afterUnlock(); } else { PIN.buf = ''; setTimeout(() => drawLock(true), 150); } return; }
+  if (PIN.mode === 'unlock') { if (h === DB.settings.pin) { await pinOk(); $('#lock').innerHTML = ''; afterUnlock(); } else { PIN.buf = ''; await pinFail(); setTimeout(() => drawLock(true), 120); } return; }
   if (!PIN.first) { PIN.first = h; PIN.buf = ''; return setTimeout(drawLock, 150); }
-  if (PIN.first === h) { DB.settings.pin = h; await persist(); $('#lock').innerHTML = ''; render(); toast(t('pin_set_ok')); }
-  else { PIN.first = ''; PIN.buf = ''; toast(t('pin_mismatch'), 'bd'); setTimeout(() => drawLock(true), 150); }
+  if (PIN.first === h) {
+    const wasReset = PIN.mode === 'reset'; DB.settings.pin = h; await pinOk(); await persist(); $('#lock').innerHTML = '';
+    if (wasReset) { afterUnlock(); return toast(t('pin_set_ok')); }
+    render(); toast(t('pin_set_ok')); if (!DB.settings.sir_h) setTimeout(() => openSecret(true), 400);
+  } else { PIN.first = ''; PIN.buf = ''; toast(t('pin_mismatch'), 'bd'); Platform.vibrate(200); setTimeout(() => drawLock(true), 150); }
+}
+function openSecret(fromPin) {
+  const st = DB.settings, cur = +st.sir_q || 1;
+  formModal('🔑 ' + t('sq_t'), `<div class="small muted">${t('sq_help')}</div>
+   <div class="fld"><label>${t('sq_q')}</label><select id="sqq">${Array.from({ length: SQ }, (_, i) => `<option value="${i + 1}" ${cur === i + 1 ? 'selected' : ''}>${t('sq' + (i + 1))}</option>`).join('')}</select></div>
+   <div class="fld"><label>${t('sq_ans')}</label><input id="sqa" autocomplete="off" maxlength="40"></div>
+   <div class="fld"><label>${t('sq_ans2')}</label><input id="sqa2" autocomplete="off" maxlength="40"></div>
+   ${fromPin ? `<div class="small muted">${t('sq_skip')}</div>` : ''}`,
+    async () => { const a = normAns(val('sqa')), a2 = normAns(val('sqa2'));
+      if (a.length < 2) return toast(t('sq_short'), 'bd'); if (a !== a2) return toast(t('sq_nomatch'), 'bd');
+      st.sir_q = +val('sqq'); st.sir_h = await Platform.sha256('sq:' + a); await persist(); closeModal(); render(); toast(t('saved')); });
 }
 let hiddenAt = 0;
 document.addEventListener('visibilitychange', () => {
@@ -866,21 +1093,32 @@ document.addEventListener('click', async e => {
   if ((x = c('[data-pct]'))) { $('#fp').value = x.dataset.pct; x.parentElement.querySelectorAll('.chip').forEach(b => b.classList.toggle('on', b === x)); return; }
   if ((x = c('[data-thm]'))) { DB.settings.mavzu = x.dataset.thm; await persist(); applyTheme(); return render(); }
   if ((x = c('[data-color]'))) { DB.settings.rang = x.dataset.color; await persist(); applyTheme(); return render(); }
-  if ((x = c('[data-sw]'))) { const k = x.dataset.sw; DB.settings[k] = !DB.settings[k]; await persist(); return render(); }
+  if ((x = c('[data-sw]'))) { const k = x.dataset.sw; if (k === 'bio' && !DB.settings.bio) { const ok = await Platform.bio.auth({ title: t('bio_t'), sub: t('app'), cancel: t('cancel') }); if (!ok) return toast(t('bio_fail'), 'bd'); } DB.settings[k] = !DB.settings[k]; await persist(); return render(); }
   if ((x = c('[data-fsw]'))) { x.classList.toggle('on'); $('#ff').value = x.classList.contains('on') ? 1 : 0; return; }
   /* amal formasi */
   if ((x = c('[data-tur]'))) { readTx(); M.tur = x.dataset.tur; M.c = ''; return drawTx(); }
   if ((x = c('[data-pickc]'))) { readTx(); M.c = x.dataset.pickc; return drawTx(); }
   if ((x = c('[data-pickw]'))) { readTx(); M.w = x.dataset.pickw; if (M.w2 === M.w) M.w2 = ''; return drawTx(); }
+  if ((x = c('[data-kimga]'))) { if (x.dataset.kimga === '?') return toast(t('fam_none'), 'wn'); readTx(); M.kimga = x.dataset.kimga; M.w2 = ''; return drawTx(); }
   if ((x = c('[data-pickw2]'))) { readTx(); M.w2 = x.dataset.pickw2; return drawTx(); }
   if ((x = c('[data-catd]'))) return catSheet(x.dataset.catd, x.dataset.src);
-  if ((x = c('[data-edit]'))) { const tx = DB.tx.find(z => z.id === x.dataset.edit); if (tx) openTx(tx.id); return; }
+  if ((x = c('[data-setrol]'))) { DB.settings.rol = x.dataset.setrol; await persist(); render(); return toast(t('saved')); }
+  if ((x = c('[data-setsoni]'))) { DB.settings.oila_soni = +x.dataset.setsoni; await persist(); render(); return toast(t('saved')); }
+  if ((x = c('[data-obrol]'))) { obRead(); OB.rol = x.dataset.obrol; return onboarding(); }
+  if ((x = c('[data-obsoni]'))) { obRead(); OB.soni = +x.dataset.obsoni; return onboarding(); }
+  if ((x = c('[data-fbt]'))) { FB.type = x.dataset.fbt; FB.t = ($('#fbt') || {}).value || FB.t; return render(); }
+  if ((x = c('[data-txv]'))) return txSheet(x.dataset.txv);
+  if ((x = c('[data-edit]'))) { const tx = DB.tx.find(z => z.id === x.dataset.edit); if (!tx) return; if (tx.g && DB.goals.find(q => q.id === tx.g)) return openGoalMoney(tx.g, tx.tur === 'd' ? 'out' : 'in', tx.id); openTx(tx.id); return; }
+  if ((x = c('[data-dup]'))) { const tx = DB.tx.find(z => z.id === x.dataset.dup); if (!tx) return; const { id: _i, u: _u, ...rest } = tx; if (tx.g) return openGoalMoney(tx.g, tx.tur === 'd' ? 'out' : 'in'); return openTx(null, { ...rest, dt: ymd(today()), kim: me(), amt: String(tx.s), amt2: tx.s2 != null ? String(tx.s2) : '' }); }
+  if ((x = c('[data-goalv]')) && !c('[data-goaladd]')) return goalSheet(x.dataset.goalv);
+  if ((x = c('[data-goalmoney]'))) return openGoalMoney(x.dataset.goalmoney, x.dataset.dir);
+  if ((x = c('[data-gmw]'))) { $('#gmw').value = x.dataset.gmw; document.querySelectorAll('[data-gmw]').forEach(b => b.classList.toggle('on', b === x)); const w = walById(x.dataset.gmw); if ($('#gmu')) $('#gmu').textContent = unit(w && w.cur); return; }
   if ((x = c('[data-emoji]'))) { $('#' + x.dataset.for).value = x.dataset.emoji; x.parentElement.querySelectorAll('.on').forEach(b => b.classList.remove('on')); x.classList.add('on'); return; }
   if ((x = c('[data-dtur]'))) { $('#ft').value = x.dataset.dtur; x.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === x)); return; }
   if ((x = c('[data-ctur]'))) { $('#ft').value = x.dataset.ctur; x.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === x)); $('#fgw').hidden = x.dataset.ctur === 'd'; return; }
   if ((x = c('[data-limit]'))) return openLimit(x.dataset.limit);
   if ((x = c('[data-goaledit]'))) return openGoal(x.dataset.goaledit);
-  if ((x = c('[data-goaladd]'))) return openGoalAdd(x.dataset.goaladd);
+  if ((x = c('[data-goaladd]'))) return openGoalMoney(x.dataset.goaladd, 'in');
   if ((x = c('[data-debt]'))) return openDebt(x.dataset.debt);
   if ((x = c('[data-recedit]'))) return openRec(x.dataset.recedit);
   if ((x = c('[data-recpay]'))) return payRec(x.dataset.recpay);
@@ -891,10 +1129,14 @@ document.addEventListener('click', async e => {
   if ((x = c('[data-qa]'))) { if (QZ.picked != null) return; QZ.picked = +x.dataset.qa; const q = (LESSONS[L()] || LESSONS.uz).find(z => z.id === QZ.id).q[QZ.i]; if (QZ.picked === q.c) QZ.score++; return drawQuiz(); }
   if ((x = c('[data-rc]'))) { CONV.c = x.dataset.rc; render(); $('#main').scrollTop = 0; return; }
   if ((x = c('[data-cat]'))) return openCat(x.dataset.cat);
-  if ((x = c('[data-del]'))) { const [col, id] = x.dataset.del.split(':'); if (!confirm(t('del_q'))) return; remove(col, id); await persist(); closeModal(); render(); return toast(t('deleted')); }
+  if ((x = c('[data-del]'))) { const [col, id, sub] = x.dataset.del.split(':'); if (!confirm(t('del_q'))) return;
+    if (col === 'shopit') { const l = DB.lists.find(z => z.id === id); if (l) upsert('lists', { ...l, items: l.items.filter(i => i.id !== sub) }); await persist(); closeModal(); render(); return toast(t('deleted')); }
+    if (col === 'lists') UI.shopList = null;
+    remove(col, id); await persist(); closeModal(); render(); return toast(t('deleted')); }
   if ((x = c('[data-act]'))) {
     const a = x.dataset.act;
     if (a === 'add') return openTx(null);
+    if (a === 'nearedit') return openNear();
     if (a === 'eye') { DB.settings.yashir = !DB.settings.yashir; await Platform.save(DB); return render(); }
     if (a === 'walsheet') return walletSheet();
     if (a === 'incsheet') return typeSheet('d');
@@ -918,6 +1160,17 @@ document.addEventListener('click', async e => {
     if (a === 'debtnew') return openDebt(null);
     if (a === 'recnew') return openRec(null);
     if (a === 'debtret') { const d = M.debt, v = parseAmt(val('fr')) || debtLeft(d); d.qaytdi = [...(d.qaytdi || []), { dt: ymd(today()), s: Math.min(v, debtLeft(d)) }]; d.yopiq = debtLeft(d) <= 0; upsert('debts', d); await persist(); closeModal(); render(); return toast(d.yopiq ? t('debt_closed') : t('saved')); }
+    if (a === 'obnext') return obNext();
+    if (a === 'obback') { obRead(); OB.step = Math.max(1, OB.step - 1); return onboarding(); }
+    if (a === 'obpin') return obFinish(true);
+    if (a === 'obfinish') return obFinish(false);
+    if (a === 'secq') return openSecret();
+    if (a === 'feedback') { UI.page = 'feedback'; return render(); }
+    if (a === 'fbimg') { const f = await Platform.pickFile('image/*'); if (f) { FB.img = f; FB.t = ($('#fbt') || {}).value || FB.t; render(); } return; }
+    if (a === 'fbimgx') { FB.img = null; FB.t = ($('#fbt') || {}).value || FB.t; return render(); }
+    if (a === 'fbsend') return fbSend();
+    if (a === 'pinbio') return bioUnlock();
+    if (a === 'pinrec') { const ok = await recoverCheck(); return ok; }
     if (a === 'obdone') { const n = ($('#obName').value || '').trim(); if (!n) { $('#obName').classList.add('err'); return $('#obName').focus(); }
       DB.settings.ism = n; if ($('#obRate')) DB.settings.kurs = parseAmt($('#obRate').value) || DB.settings.kurs;
       document.querySelectorAll('[data-ob]').forEach(i => { const w = walById(i.dataset.ob); if (w) { w.start = parseAmt(i.value); w.egasi = n; touch(w); } });
@@ -927,7 +1180,7 @@ document.addEventListener('click', async e => {
     if (a === 'xlexp') return excelExport(range(UI.per, UI.off));
     if (a === 'xlall') return excelExport(null);
     if (a === 'pinset') return showLock('set');
-    if (a === 'pinoff') { DB.settings.pin = ''; await persist(); render(); return toast(t('pin_off_ok')); }
+    if (a === 'pinoff') { DB.settings.pin = ''; DB.settings.bio = false; await persist(); render(); return toast(t('pin_off_ok')); }
     if (a === 'wipe') { if (confirm(t('wipe_q'))) { DB = newDB(); await Platform.save(DB); UI.page = 'home'; render(); } return; }
     if (a === 'ntest') { const r = await Platform.notify.test('💰 ' + t('app'), t('n_daily_b')); return toast(r.ok ? t('n_test_ok') : r.denied ? t('n_denied') : t('error'), r.ok ? '' : 'bd'); }
     if (a === 'tglink') return tgLink();
@@ -952,6 +1205,8 @@ document.addEventListener('change', async e => {
   const el = e.target;
   if (el.id === 'who') { UI.who = el.value; return render(); }
   if (el.id === 'cvc') { CONV.c = el.value; return render(); }
+  if (el.id === 'setYear') { const v = +el.value; if (v >= 1920 && v <= new Date().getFullYear() - 5) { DB.settings.yil = v; await persist(); return toast(t('saved')); } return toast(t('e_year'), 'bd'); }
+  if (el.id === 'setCity') { DB.settings.shahar = el.value.trim(); await persist(); return toast(t('saved')); }
   if (el.id === 'setName' && el.value.trim()) { DB.settings.ism = el.value.trim(); await persist(); return toast(t('saved')); }
   if (el.id === 'setRate') { const v = parseAmt(el.value); if (v > 0) { DB.settings.kurs = v; await persist(); render(); toast(t('saved')); } return; }
   if (el.id === 'ntime' && el.value) { DB.settings.eslat_vaqt = el.value; await persist(); return toast(t('saved')); }
@@ -959,14 +1214,42 @@ document.addEventListener('change', async e => {
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#modal').innerHTML) closeModal(); if (e.key === 'Enter' && e.target.id === 'amt') saveTx(); });
 
+/* =================== Motivatsion söz =================== */
+let QOPEN = null;
+function quoteOfOpen() { const Q = (QUOTES[L()] || QUOTES.uz); if (QOPEN == null) { const k = (+DB.settings.qi || 0) % Q.length; QOPEN = k; DB.settings.qi = k + 1; Platform.save(DB); } return esc(Q[QOPEN % Q.length]); }
+function splash() {
+  const el = document.createElement('div'); el.className = 'splash'; el.innerHTML = `<div class="mk">💰</div><b>${t('app')}</b><div class="quote">${quoteOfOpen()}</div><small>${t('tap_skip')}</small>`;
+  document.body.appendChild(el); const go = () => { el.classList.add('out'); setTimeout(() => el.remove(), 350); };
+  el.addEventListener('click', go); setTimeout(go, 2300);
+}
+
+/* =================== Orqaga tugmasi =================== */
+let lastBack = 0, BIO_OK = false;
+function onBack() {
+  const lk = $('#lock');
+  if (lk && lk.innerHTML) {
+    if (PIN.mode === 'recover') { pinKey('back'); return; }
+    if (PIN.mode === 'set') { lk.innerHTML = ''; return; }
+  } else if ($('#modal').innerHTML) { closeModal(); return; }
+  else if (DB && !DB.settings.ism) { if (OB.step > 1) { obRead(); OB.step--; onboarding(); return; } }
+  else if (UI.page === 'shop') { if (UI.shopList) UI.shopList = null; else UI.page = 'home'; render(); return; }
+  else if (SUB.includes(UI.page)) { UI.page = 'more'; render(); return; }
+  else if (UI.page !== 'home') { UI.page = 'home'; render(); $('#main') && ($('#main').scrollTop = 0); return; }
+  if (Date.now() - lastBack < 2000) { Platform.exit(); return 'exit'; }
+  lastBack = Date.now(); toast(t('back_exit'));
+}
+
 /* =================== Işga tuşiriş =================== */
 function afterUnlock() { render(); scheduleNotifications(); setTimeout(tgWeekly, 1500); setTimeout(() => fetchRates(false), 300); setTimeout(countUsage, 2500); }
 async function boot() {
   DB = await Platform.load();
   if (!DB || !DB.settings) DB = newDB();
   const def = newDB(); DB.settings = { ...def.settings, ...DB.settings }; COLS.forEach(c => DB[c] = DB[c] || []);
+  def.cats.forEach(c => { if (!DB.cats.some(z => z.id === c.id)) DB.cats.push(c); });
   applyTheme();
-  if (DB.settings.pin) { render(); showLock('unlock'); } else afterUnlock();
+  Platform.onBack(onBack);
+  Platform.bio.available().then(r => { BIO_OK = !!r; });
+  if (DB.settings.pin) { render(); showLock('unlock'); } else { afterUnlock(); if (DB.settings.ism && DB.settings.splash !== false) splash(); }
   if (!Platform.native && 'serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
   setInterval(() => { const k = ymd(today()); if (k !== boot.day) { boot.day = k; render(); } }, 60000); boot.day = ymd(today());
 }

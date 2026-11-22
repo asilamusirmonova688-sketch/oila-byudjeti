@@ -1,5 +1,5 @@
 /* Internetsiz işlaş uçun keş (PWA) */
-const CACHE = 'ob-v1.1';
+const CACHE = 'ob-v1.3';
 self.addEventListener('install', e => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil(
   caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())));

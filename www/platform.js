@@ -93,6 +93,32 @@ const Platform = (() => {
     return j.result;
   }
 
+
+  /* ---------- orqaga tugmasi, titraş, biometriya, havola ---------- */
+  function onBack(fn) {
+    if (native && P.App) { P.App.addListener('backButton', () => fn()); return; }
+    // brauzer (PWA): tarix orqali
+    try { history.pushState({ ob: 1 }, ''); window.addEventListener('popstate', () => { if (fn() !== 'exit') history.pushState({ ob: 1 }, ''); else history.back(); }); } catch (_) {}
+  }
+  function exit() { if (native && P.App) P.App.exitApp(); }
+  function vibrate(ms) { try { if (native && P.Haptics) P.Haptics.vibrate({ duration: ms || 200 }); else if (navigator.vibrate) navigator.vibrate(ms || 200); } catch (_) {} }
+  const BIO = P.BiometricAuthNative;
+  const bio = {
+    async available() { if (!native || !BIO) return null; try { const r = await BIO.checkBiometry(); return r && r.isAvailable ? r : null; } catch (_) { return null; } },
+    async auth(o) { if (!native || !BIO) return false; try { await BIO.internalAuthenticate({ reason: o.title, cancelTitle: o.cancel, androidTitle: o.title, androidSubtitle: o.sub || '', androidConfirmationRequired: false, androidBiometryStrength: 0, allowDeviceCredential: false }); return true; } catch (_) { return false; } },
+  };
+  function openUrl(u) { const a = document.createElement('a'); a.href = u; a.target = '_blank'; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove(); }
+  async function copy(text) { try { await navigator.clipboard.writeText(text); return true; } catch (_) { const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); let ok = false; try { ok = document.execCommand('copy'); } catch (__) {} t.remove(); return ok; } }
+  async function shareText(title, text, file) {
+    if (native && P.Share) {
+      const o = { title, text, dialogTitle: title };
+      if (file) { try { const w = await P.Filesystem.writeFile({ path: file.name, directory: 'CACHE', data: toB64(new Uint8Array(await file.arrayBuffer())) }); o.files = [w.uri]; } catch (_) {} }
+      try { await P.Share.share(o); return true; } catch (_) { return false; }
+    }
+    if (navigator.share) { const o = { title, text }; if (file && navigator.canShare && navigator.canShare({ files: [file] })) o.files = [file]; try { await navigator.share(o); return true; } catch (_) { return false; } }
+    return false;
+  }
+
   /* ---------- PIN uçun xeş ---------- */
   async function sha256(s) {
     if (crypto && crypto.subtle) {
@@ -102,5 +128,5 @@ const Platform = (() => {
     let h = 5381; for (const c of s) h = ((h << 5) + h + c.charCodeAt(0)) | 0; return 'x' + (h >>> 0).toString(16);
   }
 
-  return { native, load, save, pickFile, saveFile, notify, tg, sha256 };
+  return { native, load, save, pickFile, saveFile, notify, tg, sha256, onBack, exit, vibrate, bio, openUrl, copy, shareText };
 })();
