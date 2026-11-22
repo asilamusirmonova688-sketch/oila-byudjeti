@@ -202,7 +202,7 @@ const perSeg = () => `<div class="seg full">${['week', 'month', 'quarter', 'year
 const SUB = ['rates', 'learn', 'settings', 'feedback'];
 const FEEDBACK_TG = 'bsp3221';
 let FB = { type: 'idea', t: '', img: null };
-const APPV = '1.3';
+const APPV = '1.4';
 function devInfo() { const u = navigator.userAgent, a = u.match(/Android [\d.]+/), m = u.match(/;\s*([^;)]+)\s+Build/), i = u.match(/iPhone OS [\d_]+/);
   return [a ? a[0] : i ? i[0].replace(/_/g, '.') : (u.match(/Windows NT [\d.]+|Mac OS X [\d_]+/) || ['?'])[0], m ? m[1] : '', Platform.native ? 'APK' : 'Web'].filter(Boolean).join(' · '); }
 function pageFeedback() {
@@ -340,9 +340,8 @@ function rateChips() {
   return `<div class="rates" data-pg="rates">${it.map(x => `<div><small>${SYM[x.c] || x.c} ${x.c}</small><b class="num">${sp(x.r.toFixed(2)).replace(/ (\d\d)$/, '.$1')}</b><em class="${x.d > 0 ? 'neg' : x.d < 0 ? 'pos' : 'muted'}">${x.d > 0 ? '▲' : x.d < 0 ? '▼' : '='}${Math.abs(x.d).toFixed(2)}</em></div>`).join('')}<span class="muted">${ic('right')}</span></div>`;
 }
 function dailyTip() {
-  const H = health(); const tips = (TIPS[L()] || TIPS.uz);
-  let tip = tips[Math.floor(today() / 864e5) % tips.length];
-  if (H && H.score < 60) tip = H.tip;
+  const tips = (TIPS[L()] || TIPS.uz);
+  const tip = tips[Math.floor((today() - new Date(2026, 0, 1)) / 864e5) % tips.length];
   return `<div class="card tipc" data-pg="learn"><div class="em">💡</div><div><small>${t('tip_day')}</small><div>${tip}</div></div><span class="muted">${ic('right')}</span></div>`;
 }
 function planCard() {
@@ -364,8 +363,8 @@ function pageHome() {
    <button class="eye" data-act="eye" aria-label="eye">${hid ? '🙈' : '👁'}</button>
    <div class="mnav" style="margin:-4px 0 10px;position:relative;z-index:1;color:#fff"><button class="ib pl" style="color:#fff" data-hoff="-1">${ic('left')}</button><b style="font-size:13.5px">${r.label}</b><button class="ib pl" style="color:#fff;${cur ? 'opacity:.3' : ''}" data-hoff="1" ${cur ? 'disabled' : ''}>${ic('right')}</button></div>
    <div class="two"><div data-act="incsheet" style="cursor:pointer"><small>↓ ${t('income')} ›</small><b class="num">${money(S.inc)}</b></div><div data-act="expsheet" style="cursor:pointer"><small>↑ ${t('expense')} ›</small><b class="num">${money(S.exp)}</b></div></div></div>
-  ${cur ? shopCard() : ''}
   ${rateChips()}
+  ${cur ? shopCard() : ''}
   ${alerts.length ? `<div style="display:grid;gap:8px">${alerts.map(([c, m, a]) => `<div class="alert" style="--c:${c}" ${a || ''}><span style="flex:1">${m}</span>${a ? ic('right') : ''}</div>`).join('')}</div>` : ''}
   ${cur ? planCard() : ''}
   ${cur && H ? `<div class="card"><div class="health">${ringSvg(H.score, H.col)}<div><div class="small muted">${t('health')}</div><div class="lbl" style="color:${H.col}">${t(H.lvl)}</div><div class="tip" style="padding:0;border:0;background:none;margin-top:4px">${H.tip}</div></div></div></div>` : ''}
@@ -618,6 +617,7 @@ function pageSettings() {
   <div class="card"><div class="ch"><h2>🎨 ${t('look')}</h2></div>
    <div style="display:grid;gap:12px"><div class="seg full">${LANGS.map(([k, n]) => `<button class="${L() === k ? 'on' : ''}" data-lang="${k}">${n}</button>`).join('')}</div>
    <div class="seg full">${[['light', 'th_l'], ['dark', 'th_d'], ['auto', 'th_a']].map(([k, l]) => `<button class="${s.mavzu === k ? 'on' : ''}" data-thm="${k}">${t(l)}</button>`).join('')}</div>
+   <div class="row" style="margin-top:10px"><div class="tx"><b>🧺 ${t('bsk_t')}</b><small>${t('bsk_s')}</small></div>${sw('bsk_pulse', s.bsk_pulse)}</div>
    <div class="sws">${COLORS.map(([k, a, b]) => `<button class="swc ${s.rang === k ? 'on' : ''}" data-color="${k}" style="--x1:${a};--x2:${b}"></button>`).join('')}</div></div></div>
   <div class="small muted" style="text-align:center;padding:4px 0 10px">${t('app')} · v${APPV}</div>`;
 }
@@ -781,7 +781,7 @@ function goalSheet(id) {
    <div class="g2"><button class="btn sm" data-goalmoney="${id}" data-dir="in">${ic('plus')}${t('goal_add')}</button><button class="btn sm alt" data-goalmoney="${id}" data-dir="out">➖ ${t('goal_take')}</button></div>
    <div><div class="small muted" style="margin:4px 0 8px">${t('goal_hist')}${+g.boshi ? ` · ${t('goal_have')}: ${money(+g.boshi)}` : ''}</div>
     ${xs.length ? xs.map((x, i) => txRow(x, i, DB.settings.yashir)).join('') : `<div class="empty" style="padding:14px"><b>${t('goal_nohist')}</b></div>`}</div></div>
-   <div class="mf"><button class="btn alt" data-goaledit="${id}">${ic('edit')}${t('edit')}</button></div>`);
+   <div class="mf"><button class="btn dng" data-del="goals:${id}" style="flex:0 0 auto">${ic('trash')}${t('delete')}</button><button class="btn alt" data-goaledit="${id}">${ic('edit')}${t('edit')}</button></div>`);
 }
 function goalSavCat(dir) {
   if (dir === 'in') return (live(DB.cats).find(c => c.k === 'savings' && c.tur === 'x') || live(DB.cats).find(c => c.g === 'j' && c.tur === 'x') || {}).id;
@@ -1129,7 +1129,7 @@ document.addEventListener('click', async e => {
   if ((x = c('[data-qa]'))) { if (QZ.picked != null) return; QZ.picked = +x.dataset.qa; const q = (LESSONS[L()] || LESSONS.uz).find(z => z.id === QZ.id).q[QZ.i]; if (QZ.picked === q.c) QZ.score++; return drawQuiz(); }
   if ((x = c('[data-rc]'))) { CONV.c = x.dataset.rc; render(); $('#main').scrollTop = 0; return; }
   if ((x = c('[data-cat]'))) return openCat(x.dataset.cat);
-  if ((x = c('[data-del]'))) { const [col, id, sub] = x.dataset.del.split(':'); if (!confirm(t('del_q'))) return;
+  if ((x = c('[data-del]'))) { const [col, id, sub] = x.dataset.del.split(':'); if (!confirm(col === 'goals' ? t('goal_del_q') : t('del_q'))) return;
     if (col === 'shopit') { const l = DB.lists.find(z => z.id === id); if (l) upsert('lists', { ...l, items: l.items.filter(i => i.id !== sub) }); await persist(); closeModal(); render(); return toast(t('deleted')); }
     if (col === 'lists') UI.shopList = null;
     remove(col, id); await persist(); closeModal(); render(); return toast(t('deleted')); }

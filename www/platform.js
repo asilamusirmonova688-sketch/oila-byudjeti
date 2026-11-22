@@ -72,13 +72,13 @@ const Platform = (() => {
         if (pend.notifications && pend.notifications.length) await LN.cancel({ notifications: pend.notifications.map(n => ({ id: n.id })) });
         if (!list.length) return;
         if (!(await this.permission())) return;
-        await LN.schedule({ notifications: list.slice(0, 60).map(n => ({ ...n, largeBody: n.body, schedule: { at: n.at, allowWhileIdle: true } })) });
+        await LN.schedule({ notifications: list.slice(0, 60).map(n => ({ ...n, smallIcon: 'ic_stat_wallet', iconColor: '#12A37A', largeBody: n.body, schedule: { at: n.at, allowWhileIdle: true } })) });
       } catch (e) { console.warn('notify', e); }
     },
     async test(title, body) {
       if (!this.available) return { ok: false };
       if (!(await this.permission())) return { ok: false, denied: true };
-      await LN.schedule({ notifications: [{ id: 99999, title, body, schedule: { at: new Date(Date.now() + 3000), allowWhileIdle: true } }] });
+      await LN.schedule({ notifications: [{ id: 99999, title, body, smallIcon: 'ic_stat_wallet', iconColor: '#12A37A', schedule: { at: new Date(Date.now() + 3000), allowWhileIdle: true } }] });
       return { ok: true };
     },
   };

@@ -1,4 +1,5 @@
 /* =================== 🧺 Bozor röyxati =================== */
+const BOOT_AT = Date.now();
 const UNITS = ['kg', 'dona', 'l', 'bog', 'paket', 'quti'];
 let SHOP = { sug: [], q: '' };
 const shopLists = () => live(DB.lists || []);
@@ -40,7 +41,9 @@ function prodSuggest(q) {
 /* ---------- Boş sahifadagi karta va tepadagi savatça ---------- */
 function shopHeaderBtn() {
   const n = shopPending();
-  return `<button class="ib bsk" data-act="shop" aria-label="${t('pg_shop')}">${BASKET}${n ? `<i class="bdg">${n}</i>` : ''}</button>`;
+  const pulse = DB.settings.bsk_pulse && Date.now() - BOOT_AT < 5000 && (n > 0 || !shopLists().length);
+  if (pulse) setTimeout(() => document.querySelectorAll('.pulse').forEach(e => e.classList.remove('pulse')), Math.max(0, 5000 - (Date.now() - BOOT_AT)));
+  return `<button class="ib bsk ${pulse ? 'pulse' : ''}" data-act="shop" aria-label="${t('pg_shop')}">${BASKET}${n ? `<i class="bdg">${n}</i>` : ''}</button>`;
 }
 function shopCard() {
   const A = shopActive();

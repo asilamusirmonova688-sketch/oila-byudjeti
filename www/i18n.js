@@ -311,3 +311,6 @@ Object.assign(I18N.en, {
   to_whom: 'To whom', to_me: 'Myself', fam_member: 'Family member', to_wallet_of: '{n}’s wallet', fam_none: 'No family members yet. First exchange the file in Settings → Family — their names will appear here.',
   cat_relatives: 'Help to relatives', tap_skip: 'Tap to skip', splash_t: 'Motivation on start', splash_s: 'Shows a saving tip for 2 seconds when the app opens',
 });
+Object.assign(I18N.uz, { delete: 'Öçiriş', goal_del_q: 'Maqsad öçirilsinmi? Unga qöşilgan pullar tarixda (Jamğarma xarajati sifatida) qoladi.', bsk_t: 'Savatça diqqatni tortsin', bsk_s: 'Ilova oçilganda 5 soniya öçib-yonadi (olinmagan narsa bölsa)' });
+Object.assign(I18N.ru, { delete: 'Удалить', goal_del_q: 'Удалить цель? Внесённые деньги останутся в истории (как расход «Накопления»).', bsk_t: 'Мигающая корзина', bsk_s: 'При запуске 5 секунд мигает (если есть некупленное)' });
+Object.assign(I18N.en, { delete: 'Delete', goal_del_q: 'Delete the goal? Money added to it stays in history (as a Savings expense).', bsk_t: 'Basket attracts attention', bsk_s: 'Blinks for 5 seconds on start (if items are not bought)' });
