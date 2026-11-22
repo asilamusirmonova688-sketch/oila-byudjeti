@@ -9,14 +9,23 @@ const decode = s => s.replace(/&(#x?[0-9a-f]+|\w+);/gi, (m, e) => e[0] === '#' ?
 const clean = s => decode(String(s).replace(/<[^>]+>/g, ' ')).replace(/[   ]/g, ' ').replace(/\s+/g, ' ').trim();
 const num = s => { const m = String(s).replace(/[\s  ]/g, '').replace(',', '.').match(/^\d+(\.\d+)?$/); return m ? +m[0] : null; };
 
-function parse(html) {
+function tableRows(t) {
   const rows = [];
-  // 1) oddiy jadval: <tr><td>Bank</td><td>sotiş</td><td>sotib oliş</td></tr>
-  for (const tr of html.match(/<tr[\s\S]*?<\/tr>/gi) || []) {
+  for (const tr of t.match(/<tr[\s\S]*?<\/tr>/gi) || []) {
     const cells = [...tr.matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi)].map(m => clean(m[1]));
-    if (cells.length >= 2) { const n = cells[0], s = num(cells[1]), b = cells.length > 2 ? num(cells[2]) : null; if (n && !/^\d/.test(n) && (s || b)) rows.push({ n, s, b }); }
+    if (cells.length >= 2) { const n = cells[0], s = num(cells[1]), b = cells.length > 2 ? num(cells[2]) : null; if (n && !/^\d/.test(n) && !/^[A-Z]{3}$/.test(n) && (s || b)) rows.push({ n, s, b }); }
   }
-  if (rows.length >= 3) return { rows, how: 'table' };
+  return rows;
+}
+const median = a => { const v = a.slice().sort((x, y) => x - y); return v.length ? v[v.length >> 1] : 0; };
+function parse(html, ref) {
+  // 1) sahifadagi har bir jadvalni alohida köriş va kursi şu valyutaga eng mosini tanlaş
+  const tables = (html.match(/<table[\s\S]*?<\/table>/gi) || []).map(tableRows).filter(r => r.length >= 3 && r.filter(x => x.s && x.b).length >= 3);
+  if (tables.length) {
+    let best = null, bd = Infinity;
+    for (const r of tables) { const m = median(r.map(x => x.s || x.b)); const d = ref ? Math.abs(m / ref - 1) : 0; if (d < bd) { bd = d; best = r; } }
+    if (best && (!ref || bd < 0.25)) return { rows: best, how: 'table ' + tables.length };
+  }
   // 2) boşqa tuzilma: matnni qatorlarga bölib, «Nom 12 010 11 920» ko'rinişidagilarni oliş
   const text = decode(html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, ' ').replace(/<(br|\/div|\/li|\/p|\/tr|\/h\d|\/a|\/span|\/td)[^>]*>/gi, '\n').replace(/<[^>]+>/g, ' ')).replace(/[   ]/g, ' ');
   const lines = text.split('\n').map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
@@ -42,13 +51,13 @@ function parse(html) {
       try {
         const r = await fetch(url, { headers: { 'User-Agent': UA, 'Accept-Language': 'uz,ru;q=0.8' } });
         const html = await r.text();
-        const { rows, how } = parse(html);
+        const { rows, how } = parse(html, cbu[c]);
         const ref = cbu[c];
         const seen = new Set();
         const ok = rows.filter(x => {
           const k = x.n.toLowerCase(); if (seen.has(k) || /^(bank|банк|valyuta|sotish|sotib|kurs)/i.test(x.n)) return false;
           const vals = [x.s, x.b].filter(Boolean); if (!vals.length) return false;
-          if (ref && vals.some(v => v < ref * 0.7 || v > ref * 1.4)) return false;
+          if (ref && vals.some(v => v < ref * 0.6 || v > ref * 1.5)) return false;
           seen.add(k); return true;
         });
         console.log(`${c}: ${ok.length} ta bank (${how}, jami qator ${rows.length}) — misol:`, JSON.stringify(ok.slice(0, 3)));
