@@ -48,7 +48,7 @@ jobs:
       - name: Android loyihasi
         run: |
           npx cap add android
-          npx @capacitor/assets generate --android --iconBackgroundColor '#12a37a' --iconBackgroundColorDark '#12a37a' --splashBackgroundColor '#f2f5fb' --splashBackgroundColorDark '#0a0f1e' || echo "ikonka yasalmadi"
+          npx @capacitor/assets generate --android --iconBackgroundColor '#12a37a' --iconBackgroundColorDark '#12a37a' --splashBackgroundColor '#f0f7f4' --splashBackgroundColorDark '#f0f7f4' || echo "ikonka yasalmadi"
           node scripts/patch-android.js
           npx cap sync android
 

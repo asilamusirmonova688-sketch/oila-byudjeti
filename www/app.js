@@ -54,7 +54,7 @@ function newDB() {
   const u = now();
   return {
     v: 1,
-    settings: { ogoh: 80, splash: true, til: 'uz', mavzu: 'auto', rang: 'green', ism: '', kurs: 12800, pin: '', eslat: true, eslat_vaqt: '21:00',
+    settings: { ogoh: 80, splash: true, til: 'uz', mavzu: 'light', rang: 'green', ism: '', kurs: 12800, pin: '', eslat: true, eslat_vaqt: '21:00',
       tg_token: '', tg_bot: '', tg_chat_id: null, tg_chat_nomi: '', tg_haftalik: true, tg_oxirgi: '', sync_oxirgi: '' },
     /* hamyonlar har bir telefonda alohida (id takrorlanmaydi); standart kategoriyalar u:0 —
        şunda sinxronizatsiyada boşqa telefonning standart nusxasi sizning özgarişlaringizni bosib ketmaydi */
@@ -214,7 +214,7 @@ const perSeg = () => `<div class="seg full">${['week', 'month', 'quarter', 'year
 const SUB = ['rates', 'learn', 'settings', 'feedback'];
 const FEEDBACK_TG = 'bsp3221';
 let FB = { type: 'idea', t: '', img: null };
-const APPV = '1.6';
+const APPV = '1.7';
 function devInfo() { const u = navigator.userAgent, a = u.match(/Android [\d.]+/), m = u.match(/;\s*([^;)]+)\s+Build/), i = u.match(/iPhone OS [\d_]+/);
   return [a ? a[0] : i ? i[0].replace(/_/g, '.') : (u.match(/Windows NT [\d.]+|Mac OS X [\d_]+/) || ['?'])[0], m ? m[1] : '', Platform.native ? 'APK' : 'Web'].filter(Boolean).join(' · '); }
 function pageFeedback() {
@@ -628,7 +628,8 @@ function pageSettings() {
    <div class="g2" style="margin-top:12px"><div class="fld"><label>${t('ob_year')}</label><input id="setYear" inputmode="numeric" maxlength="4" value="${esc(s.yil || '')}"></div><div class="fld"><label>${t('ob_city')}</label><input id="setCity" value="${esc(s.shahar || '')}" maxlength="30"></div></div>
    <div class="small muted" style="margin:10px 0 6px">${t('ob_role')}</div><div class="chips" style="flex-wrap:wrap">${ROLES.map(r => `<button class="chip ${s.rol === r ? 'on' : ''}" data-setrol="${r}">${t('role_' + r)}</button>`).join('')}</div>
    <div class="small muted" style="margin:10px 0 6px">${t('ob_fam')}</div><div class="chips" style="flex-wrap:wrap">${[1, 2, 3, 4, 5, 6, 7].map(n => `<button class="chip ${+s.oila_soni === n ? 'on' : ''}" data-setsoni="${n}">${n === 7 ? '7+' : n}</button>`).join('')}</div>
-   <div class="small muted" style="margin-top:10px">🛡️ ${t('prof_local')}</div></div>`,
+   <div class="small muted" style="margin-top:10px">🛡️ ${t('prof_local')}</div></div>
+   <div class="card"><div class="row"><div class="tx"><b class="neg">🚪 ${t('logout')}</b><small>${t('logout_s')}</small></div><button class="btn sm dng" data-act="logout">${t('logout_btn')}</button></div></div>`,
   wallets: () => `<div class="card"><div class="ch"><h2>👛 ${t('wallets')}</h2><button class="lnk" data-act="walnew">+ ${t('add_s')}</button></div>
    ${ws.map((w, i) => `<div class="row"><div class="ico sm">${w.e}</div><div class="tx" data-wal="${w.id}" style="cursor:pointer"><b>${esc(walName(w))}</b><small>${w.cur} · ${fmt(balance(w), w.cur)}</small></div>
      <div class="ord"><button class="ib pl" data-wup="${w.id}" ${i === 0 ? 'disabled' : ''}>▲</button><button class="ib pl" data-wdn="${w.id}" ${i === ws.length - 1 ? 'disabled' : ''}>▼</button></div></div>`).join('')}
@@ -651,8 +652,7 @@ function pageSettings() {
    <div class="row"><div class="tx"><b>📊 ${t('xl_all')}</b><small>${t('xl_all_s')}</small></div><button class="btn sm alt" data-act="xlall">${ic('export')}</button></div>
    <div class="row"><div class="tx"><b>🗄️ ${t('backup')}</b><small>${t('backup_s')}</small></div><button class="btn sm alt" data-act="backupfull">${ic('export')}</button></div>
    <div class="row"><div class="tx"><b>♻️ ${t('restore')}</b><small>${t('restore_s')}</small></div><button class="btn sm alt" data-act="syncget">${ic('import')}</button></div>
-   <div class="small muted" style="margin-top:8px">🛡️ ${t('privacy')}</div></div>
-   <div class="card"><div class="row"><div class="tx"><b class="neg">🚪 ${t('logout')}</b><small>${t('logout_s')}</small></div><button class="btn sm dng" data-act="logout">${t('logout_btn')}</button></div></div>`,
+   <div class="small muted" style="margin-top:8px">🛡️ ${t('privacy')}</div></div>`,
   look: () => `<div class="card" style="display:grid;gap:14px">
    <div><div class="small muted" style="margin-bottom:6px">${t('lang_t')}</div><div class="langlist">${LANGS.map(([k, n]) => `<button class="${L() === k ? 'on' : ''}" data-lang="${k}"><b>${k.toUpperCase()}</b>${n}${L() === k ? `<i>${ic('check')}</i>` : ''}</button>`).join('')}</div></div>
    <div><div class="small muted" style="margin-bottom:6px">${t('theme_t')}</div><div class="seg full">${[['light', 'th_l'], ['dark', 'th_d'], ['auto', 'th_a']].map(([k, l]) => `<button class="${s.mavzu === k ? 'on' : ''}" data-thm="${k}">${t(l)}</button>`).join('')}</div></div>
@@ -1149,7 +1149,7 @@ document.addEventListener('click', async e => {
   if ((x = c('[data-whochip]'))) { UI.who = x.dataset.whochip; return render(); }
   if ((x = c('[data-plan]'))) { UI.plan = x.dataset.plan; return render(); }
   if ((x = c('[data-pct]'))) { $('#fp').value = x.dataset.pct; x.parentElement.querySelectorAll('.chip').forEach(b => b.classList.toggle('on', b === x)); return; }
-  if ((x = c('[data-thm]'))) { DB.settings.mavzu = x.dataset.thm; await persist(); applyTheme(); return render(); }
+  if ((x = c('[data-thm]'))) { DB.settings.mavzu = x.dataset.thm; DB.settings.mavzu_tanlandi = 1; await persist(); applyTheme(); return render(); }
   if ((x = c('[data-color]'))) { DB.settings.rang = x.dataset.color; await persist(); applyTheme(); return render(); }
   if ((x = c('[data-sw]'))) { const k = x.dataset.sw; if (k === 'bio' && !DB.settings.bio) { const ok = await Platform.bio.auth({ title: t('bio_t'), sub: t('app'), cancel: t('cancel') }); if (!ok) return toast(t('bio_fail'), 'bd'); } DB.settings[k] = !DB.settings[k]; await persist(); return render(); }
   if ((x = c('[data-fsw]'))) { x.classList.toggle('on'); $('#ff').value = x.classList.contains('on') ? 1 : 0; return; }
@@ -1209,7 +1209,7 @@ document.addEventListener('click', async e => {
     if (a === 'quiznext') { QZ.i++; QZ.picked = null; return drawQuiz(); }
     if (a === 'quizclose') { closeModal(); return render(); }
     if (a === 'transfer') return openTx(null, { tur: 'o' });
-    if (a === 'theme') { const cur = document.documentElement.dataset.theme; DB.settings.mavzu = cur === 'dark' ? 'light' : 'dark'; await persist(); applyTheme(); return render(); }
+    if (a === 'theme') { const cur = document.documentElement.dataset.theme; DB.settings.mavzu = cur === 'dark' ? 'light' : 'dark'; DB.settings.mavzu_tanlandi = 1; await persist(); applyTheme(); return render(); }
     if (a === 'savetx') return saveTx();
     if (a === 'formsave') return FORM && FORM();
     if (a === 'catnew') { if (M && $('#amt')) { readTx(); return openCat(null, M.tur === 'd' ? 'd' : 'x'); } return openCat(null); }
@@ -1340,6 +1340,7 @@ async function boot() {
   if (!DB || !DB.settings) DB = newDB();
   const def = newDB(); DB.settings = { ...def.settings, ...DB.settings }; COLS.forEach(c => DB[c] = DB[c] || []);
   def.cats.forEach(c => { if (!DB.cats.some(z => z.id === c.id)) DB.cats.push(c); });
+  if (DB.settings.mavzu === 'auto' && !DB.settings.mavzu_tanlandi) DB.settings.mavzu = 'light';
   applyTheme();
   Platform.onBack(onBack);
   Platform.onOpenUrl(handleOpenUrl);
