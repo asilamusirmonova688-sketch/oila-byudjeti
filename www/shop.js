@@ -88,6 +88,7 @@ function pageShop() {
        <div class="bar" style="margin-top:6px"><i style="width:${n ? g / n * 100 : 0}%;--c:var(--good)"></i></div></div><div style="text-align:right"><b class="num">~${money(lsEst(l))}</b></div><span class="muted">${ic('right')}</span></div></div>`; }).join('')
     : `<div class="empty card"><div class="em bskbig">${BASKET}</div><b>${t('shop_empty')}</b>${t('shop_empty_s')}</div>`}
    <button class="btn w" data-act="shopnew">${ic('plus')}${t('shop_new')}</button>
+   ${priceCard()}
    ${H.length ? `<div class="card"><div class="ch"><h2>${t('shop_hist')}</h2></div>${H.map(l => { const d = lsPaid(l) - lsPlanBought(l);
      return `<div class="row"><div class="ico sm">${l.e}</div><div class="tx"><b>${esc(l.nom)}</b><small>${l.dt_done ? fmtDay(pd(l.dt_done)) : ''} · ${money(lsPaid(l))}${lsPlanBought(l) ? ` · <span class="${d > 0 ? 'neg' : 'pos'}">${d > 0 ? '+' : ''}${money(d)}</span>` : ''}</small></div><button class="btn sm alt" data-shrep="${l.id}">🔁</button><button class="ib pl" data-shdel="${l.id}" aria-label="delete" style="color:var(--bad)">${ic('trash')}</button></div>`; }).join('')}
      <button class="btn sm alt w" data-act="shopclear" style="margin-top:10px;color:var(--bad)">${ic('trash')}${t('shop_clear')}</button></div>` : ''}`;
@@ -154,6 +155,7 @@ function shopItem(lid, iid, pre) {
    <div><div class="small muted" style="margin-bottom:6px">${t('shop_unit')}</div><input type="hidden" id="sib" value="${b}"><div class="chips" style="flex-wrap:wrap">${UNITS.map(u => `<button class="chip ${b === u ? 'on' : ''}" data-sib="${u}">${unitName(u)}</button>`).join('')}</div></div>
    <div class="g2"><div class="fld"><label>${t('shop_qty')}</label><input id="siq" inputmode="decimal" value="${it ? esc(String(it.miq).replace('.', ',')) : '1'}"></div>
     <div class="fld"><label id="sipl">${t('shop_price', { u: unitName(b) })}</label><input id="sip" inputmode="decimal" placeholder="0" value="${it ? (+it.narx ? esc(fmtInput(String(it.narx))) : '') : p.p ? esc(fmtInput(String(p.p))) : ''}"></div></div>
+   ${(() => { const hh = lastPriceHint(it ? it.nom : p.n || ''); return hh ? `<div class="small muted" style="margin-top:-6px">🕘 ${hh}</div>` : ''; })()}
    ${real ? `<div class="kp" style="display:grid;gap:10px"><b>✓ ${t('shop_real')}</b><div class="g2"><div class="fld"><label>${t('shop_qty')}</label><input id="sfq" inputmode="decimal" value="${esc(String(it.fmiq ?? it.miq).replace('.', ','))}"></div>
     <div class="fld"><label>${t('shop_price', { u: unitName(b) })}</label><input id="sfp" inputmode="decimal" value="${esc(fmtInput(String(it.fnarx ?? it.narx ?? '')))}"></div></div></div>` : ''}
    ${!l.c ? `<div class="fld"><label>${t('category')}</label><select id="sic">${shopCats().map(c => `<option value="${c.id}" ${(cid || foodCat()) === c.id ? 'selected' : ''}>${c.e} ${esc(catName(c))}</option>`).join('')}</select></div>` : ''}

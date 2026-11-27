@@ -116,8 +116,17 @@ const txUZS = x => toUZS(x.s, (walById(x.w) || {}).cur);
 const MON = () => I18N[L()].months;
 const monName = (i, gen) => { const m = gen && I18N[L()].monthsG ? I18N[L()].monthsG : MON(); return m[i]; };
 function fmtDay(d) { const l = L(); if (l === 'en') return `${MON()[d.getMonth()]} ${d.getDate()}`; if (l === 'ru') return `${d.getDate()} ${monName(d.getMonth(), true)}`; return `${d.getDate()}-${MON()[d.getMonth()].toLowerCase()}`; }
+const SD = () => Math.min(28, Math.max(1, +DB.settings.oy_boshi || 1));
+const dm = d => `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`;
 function range(per, off) {
-  const d = today(); let a, b, label;
+  const d = today(), sd = SD(); let a, b, label;
+  if (sd > 1 && per !== 'week') {
+    const base = d.getDate() >= sd ? d.getMonth() : d.getMonth() - 1, by = d.getFullYear();
+    if (per === 'month') { a = new Date(by, base + off, sd); b = new Date(a.getFullYear(), a.getMonth() + 1, sd); label = `${monName(a.getMonth())} ${a.getFullYear()}`; }
+    else if (per === 'quarter') { const q0 = Math.floor(((base % 12) + 12) % 12 / 3), y0 = new Date(by, base, 1).getFullYear(); a = new Date(y0, q0 * 3 + off * 3, sd); b = new Date(a.getFullYear(), a.getMonth() + 3, sd); label = t('quarter_lbl', { q: Math.floor(a.getMonth() / 3) + 1, y: a.getFullYear() }); }
+    else { const y0 = new Date(by, base, 1).getFullYear(); a = new Date(y0 + off, 0, sd); b = new Date(a.getFullYear() + 1, 0, sd); label = String(a.getFullYear()); }
+    return { a, b, label, per, off, span: `${dm(a)} – ${dm(addDays(b, -1))}` };
+  }
   if (per === 'week') { a = addDays(weekStart(d), 7 * off); b = addDays(a, 7); label = `${fmtDay(a)} – ${fmtDay(addDays(b, -1))}`; }
   else if (per === 'month') { a = new Date(d.getFullYear(), d.getMonth() + off, 1); b = new Date(a.getFullYear(), a.getMonth() + 1, 1); label = `${monName(a.getMonth())} ${a.getFullYear()}`; }
   else if (per === 'quarter') { const q = Math.floor(d.getMonth() / 3) + off; a = new Date(d.getFullYear(), q * 3, 1); b = new Date(a.getFullYear(), a.getMonth() + 3, 1); label = t('quarter_lbl', { q: Math.floor(a.getMonth() / 3) + 1, y: a.getFullYear() }); }
@@ -208,13 +217,13 @@ function modal(h) { $('#modal').innerHTML = `<div class="ovl" data-close="1"><di
 const closeModal = () => { $('#modal').innerHTML = ''; M = null; };
 const mhead = title => `<div class="mh"><h3>${title}</h3><button class="ib pl" data-close="1">${ic('x')}</button></div>`;
 const sw = (k, on, attr = 'data-sw') => `<button class="sw ${on ? 'on' : ''}" ${attr}="${k}" role="switch"></button>`;
-const perNav = r => `<div class="mnav"><button class="ib" data-off="-1">${ic('left')}</button><b>${r.label}</b><button class="ib" data-off="1" ${r.off >= 0 ? 'disabled style="opacity:.35"' : ''}>${ic('right')}</button></div>`;
+const perNav = r => `<div class="mnav"><button class="ib" data-off="-1">${ic('left')}</button><b>${r.label}${r.span ? `<small class="span">${r.span}</small>` : ''}</b><button class="ib" data-off="1" ${r.off >= 0 ? 'disabled style="opacity:.35"' : ''}>${ic('right')}</button></div>`;
 const perSeg = () => `<div class="seg full">${['week', 'month', 'quarter', 'year'].map(p => `<button class="${UI.per === p ? 'on' : ''}" data-per="${p}">${t('per_' + p)}</button>`).join('')}</div>`;
 
-const SUB = ['rates', 'learn', 'settings', 'feedback'];
+const SUB = ['rates', 'learn', 'settings', 'feedback', 'loan'];
 const FEEDBACK_TG = 'bsp3221';
 let FB = { type: 'idea', t: '', img: null };
-const APPV = '1.9';
+const APPV = '2.0';
 function devInfo() { const u = navigator.userAgent, a = u.match(/Android [\d.]+/), m = u.match(/;\s*([^;)]+)\s+Build/), i = u.match(/iPhone OS [\d_]+/);
   return [a ? a[0] : i ? i[0].replace(/_/g, '.') : (u.match(/Windows NT [\d.]+|Mac OS X [\d_]+/) || ['?'])[0], m ? m[1] : '', Platform.native ? 'APK' : 'Web'].filter(Boolean).join(' · '); }
 function pageFeedback() {
@@ -239,7 +248,7 @@ async function fbSend() {
 function render() {
   if (!DB) return;
   if (!DB.settings.ism) return onboarding();
-  const pages = { shop: pageShop, feedback: pageFeedback, home: pageHome, tx: pageTx, report: pageReport, plan: pagePlan, more: pageMore, rates: pageRates, learn: pageLearn, settings: pageSettings };
+  const pages = { loan: pageLoan, shop: pageShop, feedback: pageFeedback, home: pageHome, tx: pageTx, report: pageReport, plan: pagePlan, more: pageMore, rates: pageRates, learn: pageLearn, settings: pageSettings };
   const th = document.documentElement.dataset.theme, sub = SUB.includes(UI.page), shp = UI.page === 'shop', navOn = sub ? 'more' : shp ? 'home' : UI.page;
   $('#root').innerHTML = `<div class="app"><main class="main" id="main">
    <header class="top">${UI.page === 'settings' && UI.setSec ? `<button class="ib" data-act="setback">${ic('left')}</button>` : sub ? `<button class="ib" data-pg="more">${ic('left')}</button>` : shp ? `<button class="ib" data-act="shopback">${ic('left')}</button>` : ''}<h1>${UI.page === 'settings' && UI.setSec ? setSecInfo(UI.setSec)[1] : t('pg_' + UI.page)}</h1>${shp ? '' : shopHeaderBtn()}
@@ -268,6 +277,7 @@ function pageMore() {
   return `<div class="card" style="padding:6px 12px">
    <button class="mi" data-act="famsheet"><div class="ico">👨‍👩‍👧</div><div class="tx"><b>${t('fam_share')}</b><small>${DB.settings.sync_oxirgi ? t('sync_last', { d: DB.settings.sync_oxirgi }) : t('sync_never')}</small></div>${ic('right')}</button>
    ${item('rates', '💱', t('pg_rates'), usd ? `1 $ = ${fmt(usd.r)}${DB.rates.date ? ' · ' + DB.rates.date : ''}` : t('rates_sub'))}
+   ${item('loan', '🏦', t('pg_loan'), t('loan_sub'))}
    ${item('learn', '📚', t('pg_learn'), t('learn_prog', { a: done, b: L_.length }))}
    ${item('settings', '⚙️', t('pg_settings'), t('settings_sub'))}
    ${item('feedback', '💬', t('pg_feedback'), t('fb_menu'))}</div>
@@ -368,6 +378,7 @@ function homeAlerts() {
   }
   for (const x of recUnpaidThisMonth()) { const due = recDue(x, d), n = Math.round((due - d) / 864e5); if (n <= 3) alerts.push([n < 0 ? 'var(--bad)' : 'var(--warn)', `🔁 ${t(n < 0 ? 'al_rec_late' : n === 0 ? 'al_rec_today' : 'al_rec_soon', { n: esc(x.nom), d: n })} — ${money(x.s, (walById(x.w) || {}).cur)}`, `data-recedit="${x.id}"`]); }
   for (const x of live(DB.debts).filter(x => !x.yopiq && x.muddat)) { const n = Math.round((pd(x.muddat) - d) / 864e5); if (n <= 3) alerts.push([n < 0 ? 'var(--bad)' : 'var(--warn)', `🤝 ${t(x.tur === 'berdim' ? 'al_debt_in' : 'al_debt_out', { k: esc(x.kim) })}: ${money(debtLeft(x), x.cur)} — ${n < 0 ? t('overdue') : fmtDay(pd(x.muddat))}`, `data-debt="${x.id}"`]); }
+  { const d = today(); if ((d.getMonth() === 11 && d.getDate() >= 20) || (d.getMonth() === 0 && d.getDate() <= 10)) alerts.push(['var(--acc)', `🎉 ${t('ys_ready')}`, 'data-act="yearsum"']); }
   if (syncDue()) alerts.push(['var(--acc)', `👨‍👩‍👧 ${t('sync_due', { d: DB.settings.sync_ts ? Math.floor((Date.now() - DB.settings.sync_ts) / 864e5) : 7 })}`, 'data-act="syncsend"']);
   return alerts;
 }
@@ -398,7 +409,7 @@ function pageHome() {
   return `
   <div class="hero"><div class="tot" data-act="walsheet"><small>${t('total_bal')} ›</small><div class="big num">${money(totalBalance())}</div></div>
    <button class="eye" data-act="eye" aria-label="eye">${hid ? '🙈' : '👁'}</button>
-   <div class="mnav" style="margin:-4px 0 10px;position:relative;z-index:1;color:#fff"><button class="ib pl" style="color:#fff" data-hoff="-1">${ic('left')}</button><b style="font-size:13.5px">${r.label}</b><button class="ib pl" style="color:#fff;${cur ? 'opacity:.3' : ''}" data-hoff="1" ${cur ? 'disabled' : ''}>${ic('right')}</button></div>
+   <div class="mnav" style="margin:-4px 0 10px;position:relative;z-index:1;color:#fff"><button class="ib pl" style="color:#fff" data-hoff="-1">${ic('left')}</button><b style="font-size:13.5px;text-align:center">${r.label}${r.span ? `<small class="span" style="color:rgba(255,255,255,.8)">${r.span}</small>` : ''}</b><button class="ib pl" style="color:#fff;${cur ? 'opacity:.3' : ''}" data-hoff="1" ${cur ? 'disabled' : ''}>${ic('right')}</button></div>
    <div class="two"><div data-act="incsheet" style="cursor:pointer"><small>↓ ${t('income')} ›</small><b class="num">${money(S.inc)}</b></div><div data-act="expsheet" style="cursor:pointer"><small>↑ ${t('expense')} ›</small><b class="num">${money(S.exp)}</b></div></div></div>
   ${rateChips()}
   ${cur ? shopCard() : ''}
@@ -533,6 +544,7 @@ function pageReport() {
   ${UI.who ? (() => { const F = famFlow(r, UI.who); return F.n ? `<div class="card"><div class="ch"><div><h2>👨‍👩‍👧 ${t('fam_flow')}</h2><p>${t('fam_flow_s')}</p></div></div>
    <div class="g2"><div class="kp"><small>${t('fam_got')}</small><b class="num pos">+${money(F.got)}</b></div><div class="kp"><small>${t('fam_gave')}</small><b class="num neg">−${money(F.gave)}</b></div></div>
    ${F.list.map(x => `<div class="row" data-txv="${x.id}" style="cursor:pointer"><div class="ico sm">${x.dir > 0 ? '⬇️' : '⬆️'}</div><div class="tx"><b>${esc(x.dir > 0 ? t('fam_from', { n: x.who }) : t('fam_to', { n: x.who }))}</b><small>${fmtDay(pd(x.dt))}${x.n ? ' · ' + esc(x.n) : ''}</small></div><b class="num ${x.dir > 0 ? 'pos' : 'neg'}">${x.dir > 0 ? '+' : '−'}${money(x.v)}</b></div>`).join('')}</div>` : ''; })() : ''}
+  <button class="card mi ysbtn" data-act="yearsum"><div class="ico">🎉</div><div class="tx"><b>${t('ys_btn')}</b><small>${t('ys_btn_s')}</small></div>${ic('right')}</button>
   <div class="card"><div class="ch"><h2>📈 ${t('dynamics')}</h2><span class="small"><span class="pos">■</span> ${t('income')} &nbsp;<span class="neg">■</span> ${t('expense')}</span></div>${barChart(r, UI.who)}</div>
   ${S.inc > 0 ? `<div class="card rule"><div class="ch"><div><h2>⚖️ ${t('rule_t')}</h2><p>${t('rule_s')}</p></div></div>
    ${[['z', 50, 'needs'], ['h', 30, 'wants'], ['j', 20, 'savings_g']].map(([g, target, l]) => { const v = g === 'j' ? Math.max(0, S.inc - S.exp + S.byGroup.j) : S.byGroup[g]; const p = Math.round(v / S.inc * 100); const good = g === 'j' ? p >= target : p <= target;
@@ -544,7 +556,7 @@ function pageReport() {
 function barChart(r, who) {
   let buckets = [];
   if (r.per === 'week' || r.per === 'month') for (let d = new Date(r.a); d < r.b; d = addDays(d, 1)) buckets.push({ a: new Date(d), b: addDays(d, 1), l: r.per === 'week' ? I18N[L()].wd[(d.getDay() + 6) % 7] : String(d.getDate()) });
-  else for (let d = new Date(r.a); d < r.b; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) buckets.push({ a: new Date(d), b: new Date(d.getFullYear(), d.getMonth() + 1, 1), l: monName(d.getMonth()).slice(0, 3) });
+  else for (let d = new Date(r.a); d < r.b; d = new Date(d.getFullYear(), d.getMonth() + 1, r.a.getDate())) buckets.push({ a: new Date(d), b: new Date(d.getFullYear(), d.getMonth() + 1, r.a.getDate()), l: monName(d.getMonth()).slice(0, 3) });
   const xs = live(DB.tx).filter(x => x.tur !== 'o' && inR(x, r) && (!who || x.kim === who));
   for (const b of buckets) { b.i = 0; b.e = 0; for (const x of xs) { const d = pd(x.dt); if (d >= b.a && d < b.b) x.tur === 'd' ? b.i += txUZS(x) : b.e += txUZS(x); } }
   const mx = Math.max(1, ...buckets.map(b => Math.max(b.i, b.e)));
@@ -642,6 +654,9 @@ function pageSettings() {
    <div class="small muted" style="margin:10px 0 6px">${t('ob_role')}</div><div class="chips" style="flex-wrap:wrap">${ROLES.map(r => `<button class="chip ${s.rol === r ? 'on' : ''}" data-setrol="${r}">${t('role_' + r)}</button>`).join('')}</div>
    <div class="small muted" style="margin:10px 0 6px">${t('ob_fam')}</div><div class="chips" style="flex-wrap:wrap">${[1, 2, 3, 4, 5, 6, 7].map(n => `<button class="chip ${+s.oila_soni === n ? 'on' : ''}" data-setsoni="${n}">${n === 7 ? '7+' : n}</button>`).join('')}</div>
    <div class="small muted" style="margin-top:10px">🛡️ ${t('prof_local')}</div></div>
+   <div class="card"><div class="ch"><div><h2>📅 ${t('sd_t')}</h2><p>${t('sd_s')}</p></div></div>
+    <div class="row"><div class="tx"><b>${t('sd_day')}</b><small>${SD() > 1 ? t('sd_ex', { r: range('month', 0).span }) : t('sd_cal')}</small></div><div class="fld" style="width:96px"><select id="setSd">${Array.from({ length: 28 }, (_, i) => `<option value="${i + 1}" ${SD() === i + 1 ? 'selected' : ''}>${i + 1}</option>`).join('')}</select></div></div>
+    ${SD() > 1 && Platform.notify.available ? `<div class="row"><div class="tx"><b>🔔 ${t('sd_rem')}</b><small>${t('sd_rem_s', { d: SD() })}</small></div>${sw('maosh_eslat', s.maosh_eslat)}</div>` : ''}</div>
    <div class="card"><div class="row"><div class="tx"><b class="neg">🚪 ${t('logout')}</b><small>${t('logout_s')}</small></div><button class="btn sm dng" data-act="logout">${t('logout_btn')}</button></div></div>`,
   wallets: () => `<div class="card"><div class="ch"><h2>👛 ${t('wallets')}</h2><button class="lnk" data-act="walnew">+ ${t('add_s')}</button></div>
    ${ws.map((w, i) => `<div class="row"><div class="ico sm">${w.e}</div><div class="tx" data-wal="${w.id}" style="cursor:pointer"><b>${esc(walName(w))}</b><small>${w.cur} · ${fmt(balance(w), w.cur)}</small></div>
@@ -873,8 +888,8 @@ function openDebt(id) {
     id ? 'debts:' + id : null);
   M = { debt: x };
 }
-function openRec(id) {
-  const r = id ? DB.rec.find(z => z.id === id) : { id: null, nom: '', s: 0, c: (live(DB.cats).find(c => c.k === 'utility') || {}).id, w: (W()[0] || {}).id, kun: today().getDate(), faol: true, paid: [] };
+function openRec(id, preset) {
+  const r = id ? DB.rec.find(z => z.id === id) : { id: null, nom: '', s: 0, c: (live(DB.cats).find(c => c.k === 'utility') || {}).id, w: (W()[0] || {}).id, kun: today().getDate(), faol: true, paid: [], ...(preset || {}) };
   formModal(id ? esc(r.nom) : t('rec_new'), `<div class="fld"><label>${t('rec_name')}</label><input id="fn" value="${esc(r.nom)}" placeholder="${t('rec_ph')}"></div>
    <div class="g2"><div class="fld"><label>${t('amount')}</label><input id="fs" inputmode="decimal" value="${r.s ? esc(fmtInput(String(r.s))) : ''}"></div><div class="fld"><label>${t('pay_day')}</label><input id="fk" type="number" min="1" max="31" value="${r.kun}"></div></div>
    <div class="fld"><label>${t('category')}</label><select id="fc">${catOpts(r.c)}</select></div>
@@ -1087,6 +1102,7 @@ function scheduleNotifications() {
     if (due > nowD && !recPaid(r, md)) list.push({ id: 2000 + k++, title: '🔁 ' + r.nom, body: t('n_rec_b', { s: fmt(r.s, (walById(r.w) || {}).cur) }), at: due });
   }
   for (const x of live(DB.debts).filter(x => !x.yopiq && x.muddat)) { const at = pd(x.muddat); at.setHours(10, 0, 0, 0); if (at > nowD) list.push({ id: 3000 + k++, title: '🤝 ' + x.kim, body: t(x.tur === 'berdim' ? 'n_debt_in' : 'n_debt_out', { s: fmt(debtLeft(x), x.cur) }), at }); }
+  if (s.maosh_eslat && SD() > 1) for (let mo = 0; mo < 3; mo++) { const at = new Date(d0.getFullYear(), d0.getMonth() + mo, SD(), 9, 0, 0); if (at > nowD) list.push({ id: 4000 + mo, title: '💰 ' + t('app'), body: t('n_salary'), at }); }
   Platform.notify.replace(list.sort((a, b) => a.at - b.at));
 }
 
@@ -1323,6 +1339,7 @@ document.addEventListener('change', async e => {
   const el = e.target;
   if (el.id === 'who') { UI.who = el.value; return render(); }
   if (el.id === 'cvf' || el.id === 'cvt') { CONV[el.id === 'cvf' ? 'f' : 'to'] = el.value; convSave(); return render(); }
+  if (el.id === 'setSd') { DB.settings.oy_boshi = +el.value; await persist(); scheduleNotifications(); render(); return toast(t('saved')); }
   if (el.id === 'setYear') { const v = +el.value; if (v >= 1920 && v <= new Date().getFullYear() - 5) { DB.settings.yil = v; await persist(); return toast(t('saved')); } return toast(t('e_year'), 'bd'); }
   if (el.id === 'setCity') { DB.settings.shahar = el.value.trim(); await persist(); return toast(t('saved')); }
   if (el.id === 'setName' && el.value.trim()) { DB.settings.ism = el.value.trim(); await persist(); return toast(t('saved')); }

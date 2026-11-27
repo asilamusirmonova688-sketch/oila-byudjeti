@@ -371,3 +371,51 @@ Object.assign(I18N.en, { cv_give: 'You give', cv_get: 'You get', cv_note: 'At th
 Object.assign(I18N.uz, { bk_title: 'Banklarda', bk_upd: 'Yangilangan: {d}', bk_none: 'Banklar kursi hozirça mavjud emas. Internetni tekşirib, «Yangilaş» ni bosing.', bk_buy: '{c} sotib oliş — eng arzon', bk_sell: '{c} sotiş — eng qimmat', bk_buy_s: 'Siz bankdan olasiz', bk_sell_s: 'Siz bankka sotasiz', bk_all: 'Barça banklar ({n})', bank_col: 'Bank', bk_s: 'Sotiş', bk_b: 'Sotib oliş', bk_note: 'Maʼlumot: {s}. Banklar kursni kun davomida özgartiradi — aniq kursni bankdan tekşiring.', bk_cv_sell: '{a} ni eng qimmat <b>{b}</b> sotib oladi: <b>{s}</b>', bk_cv_buy: '{a} ga eng köp <b>{b}</b> beradi: <b>{s}</b>' });
 Object.assign(I18N.ru, { bk_title: 'В банках', bk_upd: 'Обновлено: {d}', bk_none: 'Курсы банков сейчас недоступны. Проверьте интернет и нажмите «Обновить».', bk_buy: 'Купить {c} — дешевле всего', bk_sell: 'Продать {c} — дороже всего', bk_buy_s: 'Вы покупаете у банка', bk_sell_s: 'Вы продаёте банку', bk_all: 'Все банки ({n})', bank_col: 'Банк', bk_s: 'Продажа', bk_b: 'Покупка', bk_note: 'Данные: {s}. Банки меняют курс в течение дня — уточняйте в банке.', bk_cv_sell: 'Дороже всего {a} купит <b>{b}</b>: <b>{s}</b>', bk_cv_buy: 'Больше всего за {a} даст <b>{b}</b>: <b>{s}</b>' });
 Object.assign(I18N.en, { bk_title: 'At banks', bk_upd: 'Updated: {d}', bk_none: 'Bank rates are not available right now. Check the internet and tap “Refresh”.', bk_buy: 'Buy {c} — cheapest', bk_sell: 'Sell {c} — best price', bk_buy_s: 'You buy from the bank', bk_sell_s: 'You sell to the bank', bk_all: 'All banks ({n})', bank_col: 'Bank', bk_s: 'Sell', bk_b: 'Buy', bk_note: 'Data: {s}. Banks change rates during the day — check with the bank.', bk_cv_sell: '<b>{b}</b> pays the most for {a}: <b>{s}</b>', bk_cv_buy: '<b>{b}</b> gives the most for {a}: <b>{s}</b>' });
+Object.assign(I18N.uz, {
+  sd_t: 'Oy qaysi kundan boşlanadi', sd_s: 'Maoş oyning maʼlum kunida tuşsa, hisobot, limit va tejaş rejasi şu kundan hisoblanadi', sd_day: 'Boşlaniş kuni', sd_cal: 'Oddiy kalendar oy (1-sanadan)', sd_ex: 'Joriy oy: {r}',
+  sd_rem: 'Maoş kuni eslatma', sd_rem_s: 'Har oy {d}-sanada soat 09:00 da', n_salary: 'Bugun maoş kuni — daromadni kiritişni unutmang',
+  pg_loan: 'Kredit kalkulyatori', loan_sub: 'Oylik tölov, ortiqça tölov, jadval',
+  ln_sum: 'Kredit summasi (söm)', ln_rate: 'Yillik foiz (%)', ln_months: 'Muddat (oy)', ln_ann: 'Annuitet', ln_diff: 'Differensial',
+  ln_ann_s: 'Har oy bir xil summa tölanadi. Kreditlarning aksariyati şunday.', ln_diff_s: 'Asosiy qarz teng bölinadi, foiz kamayib boradi — boşida köp, oxirida kam tölanadi.',
+  ln_month_pay: 'Oylik tölov', ln_first_pay: 'Birinçi tölov', ln_last_pay: 'oxirgisi: {s}', ln_over: 'Ortiqça tölov (foiz)', ln_of_sum: 'summadan', ln_total: 'Jami tölanadi',
+  ln_to_rec: 'Doimiy tölovlarga qöşiş', ln_early: 'Muddatidan oldin tölaş', ln_early_s: 'Har oy qöşimça tölasangiz, qança tejaşingizni hisoblaymiz', ln_extra: 'Har oy qöşimça (söm)',
+  ln_early_r: 'Kredit <b>{m} oy</b> oldin yopiladi ({n} oyda), foizdan <b>{s}</b> tejaysiz.', ln_sched: 'Tölov jadvali', ln_pay: 'Tölov', ln_int: 'Foiz', ln_left: 'Qoldiq',
+  ln_more: 'Hammasini körsatiş ({n} oy)', ln_less: 'Qisqartiriş', ln_note: 'Taxminiy hisob. Bankdagi aniq jadval suğurta va komissiyalar sababli biroz farq qilişi mumkin.', ln_bad: 'Summa, foiz va muddatni töğri kiriting (muddat 1–360 oy).', ln_rec_name: 'Kredit tölovi',
+  ph_title: 'Narxlar tarixi', ph_sub: 'Bozorlikda haqiqatda tölangan narxlar', ph_times: 'marta', ph_now: 'Oxirgi narx', ph_change: 'Özgariş', ph_since: '{d} dan beri', ph_last: 'Oxirgi marta {s} ({d})',
+  ys_btn: 'Yil yakuni', ys_btn_s: 'Yil davomida qança topdingiz, sarfladingiz va tejadingiz', ys_title: '{y} yil yakuni', ys_hello: 'Ajoyib yil, {n}!', ys_lead: 'Bu yil {n} ta yozuv kiritdingiz',
+  ys_saved: 'Tejaldi', ys_rate: 'Tejaş foizi', ys_top: 'Eng köp sarflangan', ys_big: 'Eng qimmat oy', ys_goals: 'Maqsadlarga qöşildi', ys_shops: 'Bozorlik röyxatlari', ys_share: 'Ulaşiş',
+  ys_good: 'Zör natija! Daromadning 20% dan köpini tejadingiz. Kelasi yil ham şunday davom eting.', ys_ok: 'Yaxşi! Kelasi yil tejaş foizini 20% ga yetkaziş maqsadini qöying.', ys_bad: 'Bu yil xarajat daromaddan oşdi. Kelasi yil limit va tejaş rejasidan foydalaning.',
+  ys_empty: 'Bu yil uçun hali yozuvlar yöq', ys_ready: 'Yil yakuni tayyor — körib çiqing!',
+});
+Object.assign(I18N.ru, {
+  sd_t: 'С какого числа начинается месяц', sd_s: 'Если зарплата приходит в определённый день, отчёт, лимиты и план накоплений считаются с этого дня', sd_day: 'День начала', sd_cal: 'Обычный календарный месяц (с 1-го)', sd_ex: 'Текущий месяц: {r}',
+  sd_rem: 'Напоминание в день зарплаты', sd_rem_s: 'Каждый месяц {d}-го в 09:00', n_salary: 'Сегодня день зарплаты — не забудьте внести доход',
+  pg_loan: 'Кредитный калькулятор', loan_sub: 'Ежемесячный платёж, переплата, график',
+  ln_sum: 'Сумма кредита (сум)', ln_rate: 'Годовая ставка (%)', ln_months: 'Срок (мес.)', ln_ann: 'Аннуитет', ln_diff: 'Дифференц.',
+  ln_ann_s: 'Каждый месяц одинаковая сумма. Так устроено большинство кредитов.', ln_diff_s: 'Основной долг делится поровну, проценты уменьшаются — в начале платите больше, в конце меньше.',
+  ln_month_pay: 'Ежемесячный платёж', ln_first_pay: 'Первый платёж', ln_last_pay: 'последний: {s}', ln_over: 'Переплата (проценты)', ln_of_sum: 'от суммы', ln_total: 'Всего выплатите',
+  ln_to_rec: 'Добавить в регулярные платежи', ln_early: 'Досрочное погашение', ln_early_s: 'Если платить больше каждый месяц — посчитаем экономию', ln_extra: 'Доплата каждый месяц (сум)',
+  ln_early_r: 'Кредит закроется на <b>{m} мес.</b> раньше ({n} мес.), экономия на процентах — <b>{s}</b>.', ln_sched: 'График платежей', ln_pay: 'Платёж', ln_int: 'Проценты', ln_left: 'Остаток',
+  ln_more: 'Показать всё ({n} мес.)', ln_less: 'Свернуть', ln_note: 'Расчёт примерный. Точный график банка может отличаться из-за страховок и комиссий.', ln_bad: 'Введите сумму, ставку и срок (1–360 мес.).', ln_rec_name: 'Платёж по кредиту',
+  ph_title: 'История цен', ph_sub: 'Фактически уплаченные цены из списков покупок', ph_times: 'раз', ph_now: 'Последняя цена', ph_change: 'Изменение', ph_since: 'с {d}', ph_last: 'В прошлый раз {s} ({d})',
+  ys_btn: 'Итоги года', ys_btn_s: 'Сколько заработали, потратили и сэкономили за год', ys_title: 'Итоги {y} года', ys_hello: 'Отличный год, {n}!', ys_lead: 'За год вы внесли {n} записей',
+  ys_saved: 'Сэкономлено', ys_rate: 'Доля накоплений', ys_top: 'Больше всего потрачено', ys_big: 'Самый дорогой месяц', ys_goals: 'Внесено в цели', ys_shops: 'Списков покупок', ys_share: 'Поделиться',
+  ys_good: 'Отличный результат! Вы сэкономили больше 20% дохода. Так держать!', ys_ok: 'Хорошо! Поставьте цель на следующий год — откладывать 20%.', ys_bad: 'В этом году расходы превысили доходы. В следующем используйте лимиты и план накоплений.',
+  ys_empty: 'За этот год пока нет записей', ys_ready: 'Итоги года готовы — посмотрите!',
+});
+Object.assign(I18N.en, {
+  sd_t: 'Month starts on day', sd_s: 'If your salary comes on a fixed day, reports, limits and the savings plan count from that day', sd_day: 'Start day', sd_cal: 'Regular calendar month (from the 1st)', sd_ex: 'Current month: {r}',
+  sd_rem: 'Payday reminder', sd_rem_s: 'Every month on day {d} at 09:00', n_salary: 'Payday today — don’t forget to record your income',
+  pg_loan: 'Loan calculator', loan_sub: 'Monthly payment, overpayment, schedule',
+  ln_sum: 'Loan amount (UZS)', ln_rate: 'Annual rate (%)', ln_months: 'Term (months)', ln_ann: 'Annuity', ln_diff: 'Differentiated',
+  ln_ann_s: 'Same payment every month. Most loans work this way.', ln_diff_s: 'Principal is split equally, interest shrinks — higher payments at first, lower later.',
+  ln_month_pay: 'Monthly payment', ln_first_pay: 'First payment', ln_last_pay: 'last: {s}', ln_over: 'Overpayment (interest)', ln_of_sum: 'of the amount', ln_total: 'Total to pay',
+  ln_to_rec: 'Add to recurring payments', ln_early: 'Early repayment', ln_early_s: 'Pay extra each month and see how much you save', ln_extra: 'Extra each month (UZS)',
+  ln_early_r: 'The loan closes <b>{m} months</b> earlier ({n} months), saving <b>{s}</b> in interest.', ln_sched: 'Payment schedule', ln_pay: 'Payment', ln_int: 'Interest', ln_left: 'Balance',
+  ln_more: 'Show all ({n} months)', ln_less: 'Show less', ln_note: 'Approximate. The bank’s exact schedule may differ due to insurance and fees.', ln_bad: 'Enter a valid amount, rate and term (1–360 months).', ln_rec_name: 'Loan payment',
+  ph_title: 'Price history', ph_sub: 'Prices actually paid in your shopping lists', ph_times: 'times', ph_now: 'Last price', ph_change: 'Change', ph_since: 'since {d}', ph_last: 'Last time {s} ({d})',
+  ys_btn: 'Year in review', ys_btn_s: 'How much you earned, spent and saved this year', ys_title: '{y} in review', ys_hello: 'Great year, {n}!', ys_lead: 'You made {n} records this year',
+  ys_saved: 'Saved', ys_rate: 'Savings rate', ys_top: 'Top spending', ys_big: 'Most expensive month', ys_goals: 'Added to goals', ys_shops: 'Shopping lists', ys_share: 'Share',
+  ys_good: 'Great result! You saved more than 20% of income. Keep it up!', ys_ok: 'Good! Next year aim to save 20%.', ys_bad: 'Spending exceeded income this year. Use limits and the savings plan next year.',
+  ys_empty: 'No records for this year yet', ys_ready: 'Your year in review is ready — take a look!',
+});

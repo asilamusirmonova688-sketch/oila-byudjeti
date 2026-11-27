@@ -67,6 +67,11 @@ button{cursor:pointer}
 .main{flex:1;overflow-y:auto;padding:0 14px calc(100px + env(safe-area-inset-bottom));overscroll-behavior:contain}
 .top{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:8px;padding:calc(12px + env(safe-area-inset-top)) 0 10px;background:linear-gradient(var(--bg) 75%,transparent)}
 .top h1{flex:1;margin:0;font-family:var(--fd);font-size:21px;font-weight:700;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ysbtn{width:100%;text-align:left;border:1.5px solid color-mix(in srgb,var(--acc) 35%,var(--line));background:linear-gradient(135deg,color-mix(in srgb,var(--acc) 10%,var(--s1)),var(--s1));cursor:pointer;padding:14px 16px}
+.ysh{display:grid;justify-items:center;text-align:center;gap:4px;padding:6px 0}.ysh .em{font-size:44px}.ysh b{font-size:20px}.ysh span{color:var(--muted);font-size:14px}
+.ysg{display:grid;grid-template-columns:1fr 1fr;gap:10px}.ysb{border:1px solid var(--line);border-radius:16px;padding:12px;display:grid;gap:2px;background:var(--s1)}.ysb span{font-size:22px}.ysb small{color:var(--muted);font-weight:700;font-size:12px}.ysb b{font-size:18px}
+.lnt>div{grid-template-columns:34px minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)}
+.span{display:block;font-size:11px;font-weight:600;opacity:.75;text-align:center}
 .bkg{display:grid;gap:10px}.bkbox{border:1px solid var(--line);border-radius:14px;padding:10px 12px;display:grid;gap:6px;background:var(--s1)}.bkbox>small{font-weight:800;font-size:12px;color:var(--muted)}
 .bkr{display:flex;align-items:center;gap:8px;font-size:13.5px;min-width:0}.bkr b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}.bkr em{font-style:normal;font-weight:800;color:var(--acc)}.bkn{width:20px;height:20px;border-radius:50%;background:var(--s3);display:grid;place-items:center;font-size:11px;font-weight:800;flex:none}
 .bkt{margin-top:8px;display:grid;font-size:13.5px}.bkt>div{display:grid;grid-template-columns:minmax(0,1fr) 78px 78px;gap:8px;padding:8px 2px;border-bottom:1px solid var(--line)}.bkt>div>span:not(:first-child){text-align:right}.bkt .bkh{font-weight:800;color:var(--muted);font-size:12px}
@@ -330,5 +335,6 @@ button{cursor:pointer}
 <script src="platform.js"></script>
 <script src="app.js"></script>
 <script src="shop.js"></script>
+<script src="tools.js"></script>
 </body>
 </html>
