@@ -2,7 +2,7 @@
 const fs = require('fs');
 const man = 'android/app/src/main/AndroidManifest.xml';
 let m = fs.readFileSync(man, 'utf8');
-for (const p of ['POST_NOTIFICATIONS', 'RECEIVE_BOOT_COMPLETED', 'WAKE_LOCK', 'USE_BIOMETRIC', 'VIBRATE']) {
+for (const p of ['POST_NOTIFICATIONS', 'RECEIVE_BOOT_COMPLETED', 'WAKE_LOCK', 'USE_BIOMETRIC', 'VIBRATE', 'RECORD_AUDIO']) {
   if (!m.includes(`android.permission.${p}"`)) m = m.replace('</manifest>', `    <uses-permission android:name="android.permission.${p}" />\n</manifest>`);
 }
 // Telegram va boşqa ilovalardan .json faylni «Oila byudjeti bilan oçiş»
@@ -16,6 +16,7 @@ if (!m.includes('application/json')) {
                 <data android:mimeType="application/json" />
             </intent-filter>`);
 }
+if (!m.includes('android.speech.RecognitionService')) m = m.replace('<application', `<queries>\n        <intent><action android:name="android.speech.RecognitionService" /></intent>\n    </queries>\n    <application`);
 fs.writeFileSync(man, m);
 
 const gr = 'android/app/build.gradle';

@@ -26,6 +26,7 @@ const IC = {
   left: '<path d="M15 18l-6-6 6-6"/>', right: '<path d="M9 18l6-6-6-6"/>',
   check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>', trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
   edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/>', send: '<path d="M21 3 3 10.5l7 2.5 2.5 7z"/><path d="M10 13l11-10"/>',
+  mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6"/>',
   famx: '<circle cx="8" cy="8" r="3"/><path d="M2.5 19c0-3 2.5-5.5 5.5-5.5s5.5 2.5 5.5 5.5"/><path d="M15 6h6M18 3l3 3-3 3"/><path d="M21 15h-6M18 12l-3 3 3 3"/>',
   globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z"/>',
   share: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/>',
@@ -60,7 +61,7 @@ function newDB() {
        şunda sinxronizatsiyada boşqa telefonning standart nusxasi sizning özgarişlaringizni bosib ketmaydi */
     wallets: [['cash', '💵', 'UZS'], ['card', '💳', 'UZS'], ['usd', '💲', 'USD']].map(([k, e, cur]) => ({ id: 'w_' + k + '_' + uid(), k, e, cur, start: 0, u: 0 })),
     cats: DEF_CATS.map(([k, e, tur, g]) => ({ id: 'c_' + k, k, e, tur, g, limit: 0, u: 0 })),
-    tx: [], rec: [], debts: [], goals: [], lists: [],
+    tx: [], rec: [], debts: [], goals: [], lists: [], meters: [], kids: [], kidtx: [],
   };
 }
 
@@ -220,10 +221,10 @@ const sw = (k, on, attr = 'data-sw') => `<button class="sw ${on ? 'on' : ''}" ${
 const perNav = r => `<div class="mnav"><button class="ib" data-off="-1">${ic('left')}</button><b>${r.label}${r.span ? `<small class="span">${r.span}</small>` : ''}</b><button class="ib" data-off="1" ${r.off >= 0 ? 'disabled style="opacity:.35"' : ''}>${ic('right')}</button></div>`;
 const perSeg = () => `<div class="seg full">${['week', 'month', 'quarter', 'year'].map(p => `<button class="${UI.per === p ? 'on' : ''}" data-per="${p}">${t('per_' + p)}</button>`).join('')}</div>`;
 
-const SUB = ['rates', 'learn', 'settings', 'feedback', 'loan'];
+const SUB = ['rates', 'learn', 'settings', 'feedback', 'loan', 'util', 'kids'];
 const FEEDBACK_TG = 'bsp3221';
 let FB = { type: 'idea', t: '', img: null };
-const APPV = '2.0';
+const APPV = '2.1';
 function devInfo() { const u = navigator.userAgent, a = u.match(/Android [\d.]+/), m = u.match(/;\s*([^;)]+)\s+Build/), i = u.match(/iPhone OS [\d_]+/);
   return [a ? a[0] : i ? i[0].replace(/_/g, '.') : (u.match(/Windows NT [\d.]+|Mac OS X [\d_]+/) || ['?'])[0], m ? m[1] : '', Platform.native ? 'APK' : 'Web'].filter(Boolean).join(' · '); }
 function pageFeedback() {
@@ -248,7 +249,7 @@ async function fbSend() {
 function render() {
   if (!DB) return;
   if (!DB.settings.ism) return onboarding();
-  const pages = { loan: pageLoan, shop: pageShop, feedback: pageFeedback, home: pageHome, tx: pageTx, report: pageReport, plan: pagePlan, more: pageMore, rates: pageRates, learn: pageLearn, settings: pageSettings };
+  const pages = { util: pageUtil, kids: pageKids, loan: pageLoan, shop: pageShop, feedback: pageFeedback, home: pageHome, tx: pageTx, report: pageReport, plan: pagePlan, more: pageMore, rates: pageRates, learn: pageLearn, settings: pageSettings };
   const th = document.documentElement.dataset.theme, sub = SUB.includes(UI.page), shp = UI.page === 'shop', navOn = sub ? 'more' : shp ? 'home' : UI.page;
   $('#root').innerHTML = `<div class="app"><main class="main" id="main">
    <header class="top">${UI.page === 'settings' && UI.setSec ? `<button class="ib" data-act="setback">${ic('left')}</button>` : sub ? `<button class="ib" data-pg="more">${ic('left')}</button>` : shp ? `<button class="ib" data-act="shopback">${ic('left')}</button>` : ''}<h1>${UI.page === 'settings' && UI.setSec ? setSecInfo(UI.setSec)[1] : t('pg_' + UI.page)}</h1>${shp ? '' : shopHeaderBtn()}
@@ -257,7 +258,7 @@ function render() {
      ${UI.langOpen ? `<div class="langpop">${LANGS.map(([k, n]) => `<button class="${L() === k ? 'on' : ''}" data-lang="${k}"><b>${k.toUpperCase()}</b>${n}${L() === k ? `<i>${ic('check')}</i>` : ''}</button>`).join('')}</div>` : ''}</div>
     <button class="ib" data-act="theme">${ic(th === 'dark' ? 'sun' : 'moon')}</button></header>
    <div class="page">${pages[UI.page]()}</div></main>
-   ${['home', 'tx', 'report'].includes(UI.page) ? `<button class="fab" data-act="add" aria-label="${t('add')}">${ic('plus')}</button>` : ''}
+   ${['home', 'tx', 'report'].includes(UI.page) ? `<button class="fab mic" data-act="voice" aria-label="${t('v_title')}">${ic('mic')}</button><button class="fab" data-act="add" aria-label="${t('add')}">${ic('plus')}</button>` : ''}
    <nav class="nav">${[['home', 'home'], ['tx', 'list'], ['report', 'chart'], ['plan', 'target'], ['more', 'menu']].map(([p, i]) => `<button class="${navOn === p ? 'on' : ''}" data-pg="${p}">${ic(i)}${t('nav_' + p)}</button>`).join('')}</nav></div>`;
 }
 
@@ -278,6 +279,8 @@ function pageMore() {
    <button class="mi" data-act="famsheet"><div class="ico">👨‍👩‍👧</div><div class="tx"><b>${t('fam_share')}</b><small>${DB.settings.sync_oxirgi ? t('sync_last', { d: DB.settings.sync_oxirgi }) : t('sync_never')}</small></div>${ic('right')}</button>
    ${item('rates', '💱', t('pg_rates'), usd ? `1 $ = ${fmt(usd.r)}${DB.rates.date ? ' · ' + DB.rates.date : ''}` : t('rates_sub'))}
    ${item('loan', '🏦', t('pg_loan'), t('loan_sub'))}
+   ${item('util', '🧾', t('pg_util'), t('util_sub'))}
+   ${item('kids', '🧒', t('pg_kids'), KIDS().length ? KIDS().map(k => `${k.e || '🧒'} ${esc(k.ism)}: ${money(kidBal(k.id))}`).join(' · ') : t('kids_sub'))}
    ${item('learn', '📚', t('pg_learn'), t('learn_prog', { a: done, b: L_.length }))}
    ${item('settings', '⚙️', t('pg_settings'), t('settings_sub'))}
    ${item('feedback', '💬', t('pg_feedback'), t('fb_menu'))}</div>
@@ -379,6 +382,7 @@ function homeAlerts() {
   for (const x of recUnpaidThisMonth()) { const due = recDue(x, d), n = Math.round((due - d) / 864e5); if (n <= 3) alerts.push([n < 0 ? 'var(--bad)' : 'var(--warn)', `🔁 ${t(n < 0 ? 'al_rec_late' : n === 0 ? 'al_rec_today' : 'al_rec_soon', { n: esc(x.nom), d: n })} — ${money(x.s, (walById(x.w) || {}).cur)}`, `data-recedit="${x.id}"`]); }
   for (const x of live(DB.debts).filter(x => !x.yopiq && x.muddat)) { const n = Math.round((pd(x.muddat) - d) / 864e5); if (n <= 3) alerts.push([n < 0 ? 'var(--bad)' : 'var(--warn)', `🤝 ${t(x.tur === 'berdim' ? 'al_debt_in' : 'al_debt_out', { k: esc(x.kim) })}: ${money(debtLeft(x), x.cur)} — ${n < 0 ? t('overdue') : fmtDay(pd(x.muddat))}`, `data-debt="${x.id}"`]); }
   { const d = today(); if ((d.getMonth() === 11 && d.getDate() >= 20) || (d.getMonth() === 0 && d.getDate() <= 10)) alerts.push(['var(--acc)', `🎉 ${t('ys_ready')}`, 'data-act="yearsum"']); }
+  alerts.push(...kidAlerts());
   if (syncDue()) alerts.push(['var(--acc)', `👨‍👩‍👧 ${t('sync_due', { d: DB.settings.sync_ts ? Math.floor((Date.now() - DB.settings.sync_ts) / 864e5) : 7 })}`, 'data-act="syncsend"']);
   return alerts;
 }
@@ -769,6 +773,7 @@ function drawTx() {
   cats.sort((a, b) => { const ia = recent.indexOf(a.id), ib = recent.indexOf(b.id); return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib); });
   const cross = m.tur === 'o' && w && w2 && w.cur !== w2.cur;
   modal(`${mhead(m.id ? t('edit_tx') : t('new_tx'))}<div class="mb">
+   ${m.id ? '' : `<button class="btn alt sm vbtn" data-act="voice">${ic('mic')}${t('v_btn')}</button>`}
    <div class="seg full">${[['x', 'expense'], ['d', 'income'], ['o', 'transfer']].map(([k, l]) => `<button class="${m.tur === k ? 'on' : ''}" data-tur="${k}">${t(l)}</button>`).join('')}</div>
    <div class="amt ${m.tur}"><input id="amt" inputmode="decimal" placeholder="0" value="${esc(fmtInput(m.amt))}" autocomplete="off"><span>${unit(w && w.cur)}</span></div>
    ${m.tur !== 'o' ? `<div class="cg">${cats.map(c => `<button class="${m.c === c.id ? 'on' : ''}" data-pickc="${c.id}"><span>${c.e}</span>${esc(catName(c))}</button>`).join('')}<button data-act="catnew"><span>➕</span>${t('new_cat')}</button></div>` : ''}
@@ -926,7 +931,7 @@ function openCat(id, tur) {
 }
 
 /* =================== Oila sinxronizatsiyasi =================== */
-const COLS = ['wallets', 'cats', 'tx', 'rec', 'debts', 'goals', 'lists'];
+const COLS = ['wallets', 'cats', 'tx', 'rec', 'debts', 'goals', 'lists', 'meters', 'kids', 'kidtx'];
 function merge(other) {
   let n = 0;
   for (const col of COLS) {

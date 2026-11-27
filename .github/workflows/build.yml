@@ -66,14 +66,14 @@ jobs:
             export KEYSTORE_PATH="$RUNNER_TEMP/release.jks"
             ./gradlew assembleRelease bundleRelease --no-daemon || {
               echo "::warning::Biometrik kutubxona bilan yig'ilmadi — usiz qayta yig'ilyapti"
-              (cd .. && npm uninstall @aparajita/capacitor-biometric-auth && npx cap sync android)
+              (cd .. && npm uninstall @aparajita/capacitor-biometric-auth @capacitor-community/speech-recognition && npx cap sync android)
               ./gradlew assembleRelease bundleRelease --no-daemon
             }
             cp app/build/outputs/apk/release/app-release.apk ../out/OilaByudjeti.apk
             cp app/build/outputs/bundle/release/app-release.aab ../out/OilaByudjeti.aab
           else
             echo "::warning::KEYSTORE_BASE64 sozlanmagan — sinov (debug) APK yasaldi"
-            ./gradlew assembleDebug --no-daemon || { (cd .. && npm uninstall @aparajita/capacitor-biometric-auth && npx cap sync android); ./gradlew assembleDebug --no-daemon; }
+            ./gradlew assembleDebug --no-daemon || { (cd .. && npm uninstall @aparajita/capacitor-biometric-auth @capacitor-community/speech-recognition && npx cap sync android); ./gradlew assembleDebug --no-daemon; }
             cp app/build/outputs/apk/debug/app-debug.apk ../out/OilaByudjeti.apk
           fi
 
