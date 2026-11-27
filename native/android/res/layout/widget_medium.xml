@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/wg_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/wg_bg_light"
+    android:orientation="vertical"
+    android:padding="14dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/wg_lbl"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="Oila byudjeti"
+            android:textColor="#FF64748B"
+            android:textSize="12sp" />
+
+        <ImageView
+            android:id="@+id/wg_eye"
+            android:layout_width="34dp"
+            android:layout_height="30dp"
+            android:contentDescription="eye"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
+            android:paddingTop="3dp"
+            android:paddingBottom="3dp"
+            android:src="@drawable/wg_eye" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/wg_bal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="#FF0F172A"
+        android:textSize="24sp"
+        android:textStyle="bold" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/wg_today"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="#FF64748B"
+            android:textSize="12sp" />
+
+        <TextView
+            android:id="@+id/wg_rem"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:gravity="end"
+            android:maxLines="1"
+            android:textColor="#FF12A37A"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/wg_kid"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="#FF0F172A"
+        android:textSize="12sp"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="bottom"
+        android:orientation="horizontal"
+        android:paddingTop="8dp">
+
+        <TextView
+            android:id="@+id/wg_add"
+            android:layout_width="0dp"
+            android:layout_height="38dp"
+            android:layout_weight="1"
+            android:background="@drawable/wg_btn"
+            android:gravity="center"
+            android:maxLines="1"
+            android:textColor="#FFFFFFFF"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/wg_voice"
+            android:layout_width="0dp"
+            android:layout_height="38dp"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:background="@drawable/wg_btn_alt"
+            android:gravity="center"
+            android:maxLines="1"
+            android:textColor="#FF0B7A5A"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/wg_shop"
+            android:layout_width="0dp"
+            android:layout_height="38dp"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:background="@drawable/wg_btn_alt"
+            android:gravity="center"
+            android:maxLines="1"
+            android:textColor="#FF0B7A5A"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+</LinearLayout>

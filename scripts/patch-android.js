@@ -47,3 +47,22 @@ for (const d of ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi']) {
   fs.copyFileSync(f, path.join(to, 'ic_stat_wallet.png'));
 }
 console.log('Notification icon copied');
+
+// Bosh ekran vidjetlari: Java klasslar, resurslar va manifest
+const pkgDir = 'android/app/src/main/java/uz/oilabyudjeti/app';
+const copyDir = (from, to) => { if (!fs.existsSync(from)) return; fs.mkdirSync(to, { recursive: true });
+  for (const f of fs.readdirSync(from)) { const s = path.join(from, f), d = path.join(to, f); if (fs.statSync(s).isDirectory()) copyDir(s, d); else fs.copyFileSync(s, d); } };
+copyDir('native/android/java', pkgDir);
+copyDir('native/android/res', 'android/app/src/main/res');
+let m2 = fs.readFileSync(man, 'utf8');
+if (!m2.includes('.WidgetSmall')) {
+  const rc = (cls, info, label) => `        <receiver android:name=".${cls}" android:exported="false" android:label="@string/${label}">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/${info}" />
+        </receiver>\n`;
+  m2 = m2.replace('</application>', rc('WidgetSmall', 'wg_small_info', 'wg_small_n') + rc('WidgetMedium', 'wg_medium_info', 'wg_med_n') + '    </application>');
+  fs.writeFileSync(man, m2);
+}
+console.log('Widgets added');

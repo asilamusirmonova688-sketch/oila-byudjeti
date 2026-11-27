@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="wg_small_n">Balans</string>
+    <string name="wg_med_n">Balans va tugmalar</string>
+    <string name="wg_small_d">Umumiy balans va bugungi xarajat</string>
+    <string name="wg_med_d">Balans, oy qoldig\'i, tez qöşiş tugmalari</string>
+</resources>

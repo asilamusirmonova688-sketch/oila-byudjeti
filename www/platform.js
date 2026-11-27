@@ -120,6 +120,12 @@ const Platform = (() => {
   }
 
 
+  /* Android bosh ekran vidjeti */
+  const widget = {
+    set: async data => { if (native && P.Widget) try { await P.Widget.update({ json: JSON.stringify(data) }); } catch (_) {} },
+    get: async () => { if (native && P.Widget) try { return await P.Widget.get(); } catch (_) {} return null; },
+  };
+
   /* boşqa ilovadan (Telegram) fayl bilan oçilganda */
   function onOpenUrl(fn) {
     if (!(native && P.App)) return;
@@ -140,5 +146,5 @@ const Platform = (() => {
     let h = 5381; for (const c of s) h = ((h << 5) + h + c.charCodeAt(0)) | 0; return 'x' + (h >>> 0).toString(16);
   }
 
-  return { native, load, save, pickFile, saveFile, notify, tg, sha256, onBack, exit, vibrate, bio, openUrl, copy, shareText, onOpenUrl, readUrl };
+  return { native, load, save, pickFile, saveFile, notify, tg, sha256, onBack, exit, vibrate, bio, openUrl, copy, shareText, onOpenUrl, readUrl, widget };
 })();

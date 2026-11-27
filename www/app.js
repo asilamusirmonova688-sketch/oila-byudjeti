@@ -15,6 +15,8 @@ const live = a => (a || []).filter(x => !x.d);
 
 /* =================== Ikonkalar =================== */
 const IC = {
+  eye: '<path d="M2 12c2.5-4.5 6-7 10-7s7.5 2.5 10 7c-2.5 4.5-6 7-10 7s-7.5-2.5-10-7z"/><circle cx="12" cy="12" r="3"/>',
+  eyeoff: '<path d="M2 10c2.5 3.5 6 5.5 10 5.5s7.5-2 10-5.5"/><path d="M12 15.5v3M7.2 14.6 6 17.3M16.8 14.6l1.2 2.7M3.8 12.6l-1.6 2M20.2 12.6l1.6 2"/>',
   home: '<path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10"/>',
   list: '<path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/>',
   chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
@@ -78,7 +80,7 @@ const catColor = c => c && c.rang ? c.rang : PALETTE[Math.abs([...String(c ? c.i
 const me = () => DB.settings.ism || t('me');
 const W = () => live(DB.wallets).sort((a, b) => (a.tartib ?? 99) - (b.tartib ?? 99));
 
-async function persist() { await Platform.save(DB); scheduleNotifications(); }
+async function persist() { await Platform.save(DB); scheduleNotifications(); widgetPush(); }
 function touch(o) { o.u = now(); return o; }
 function upsert(col, rec) { touch(rec); const i = DB[col].findIndex(x => x.id === rec.id); if (i >= 0) DB[col][i] = rec; else DB[col].push(rec); }
 function remove(col, id) { const r = DB[col].find(x => x.id === id); if (r) { r.d = true; touch(r); } }
@@ -224,7 +226,7 @@ const perSeg = () => `<div class="seg full">${['week', 'month', 'quarter', 'year
 const SUB = ['rates', 'learn', 'settings', 'feedback', 'loan', 'util', 'kids'];
 const FEEDBACK_TG = 'bsp3221';
 let FB = { type: 'idea', t: '', img: null };
-const APPV = '2.1';
+const APPV = '2.2';
 function devInfo() { const u = navigator.userAgent, a = u.match(/Android [\d.]+/), m = u.match(/;\s*([^;)]+)\s+Build/), i = u.match(/iPhone OS [\d_]+/);
   return [a ? a[0] : i ? i[0].replace(/_/g, '.') : (u.match(/Windows NT [\d.]+|Mac OS X [\d_]+/) || ['?'])[0], m ? m[1] : '', Platform.native ? 'APK' : 'Web'].filter(Boolean).join(' · '); }
 function pageFeedback() {
@@ -260,6 +262,7 @@ function render() {
    <div class="page">${pages[UI.page]()}</div></main>
    ${['home', 'tx', 'report'].includes(UI.page) ? `<button class="fab mic" data-act="voice" aria-label="${t('v_title')}">${ic('mic')}</button><button class="fab" data-act="add" aria-label="${t('add')}">${ic('plus')}</button>` : ''}
    <nav class="nav">${[['home', 'home'], ['tx', 'list'], ['report', 'chart'], ['plan', 'target'], ['more', 'menu']].map(([p, i]) => `<button class="${navOn === p ? 'on' : ''}" data-pg="${p}">${ic(i)}${t('nav_' + p)}</button>`).join('')}</nav></div>`;
+  widgetPush();
 }
 
 /* ---------- Boşqa (menyu) ---------- */
@@ -412,7 +415,7 @@ function pageHome() {
   const recent = live(DB.tx).sort((a, b) => b.dt.localeCompare(a.dt) || b.u - a.u).slice(0, 5);
   return `
   <div class="hero"><div class="tot" data-act="walsheet"><small>${t('total_bal')} ›</small><div class="big num">${money(totalBalance())}</div></div>
-   <button class="eye" data-act="eye" aria-label="eye">${hid ? '🙈' : '👁'}</button>
+   <button class="eye" data-act="eye" aria-label="eye">${ic(hid ? 'eyeoff' : 'eye')}</button>
    <div class="mnav" style="margin:-4px 0 10px;position:relative;z-index:1;color:#fff"><button class="ib pl" style="color:#fff" data-hoff="-1">${ic('left')}</button><b style="font-size:13.5px;text-align:center">${r.label}${r.span ? `<small class="span" style="color:rgba(255,255,255,.8)">${r.span}</small>` : ''}</b><button class="ib pl" style="color:#fff;${cur ? 'opacity:.3' : ''}" data-hoff="1" ${cur ? 'disabled' : ''}>${ic('right')}</button></div>
    <div class="two"><div data-act="incsheet" style="cursor:pointer"><small>↓ ${t('income')} ›</small><b class="num">${money(S.inc)}</b></div><div data-act="expsheet" style="cursor:pointer"><small>↑ ${t('expense')} ›</small><b class="num">${money(S.exp)}</b></div></div></div>
   ${rateChips()}
@@ -964,7 +967,7 @@ async function importFromText(txt) {
   } catch (_) { toast(t('bad_file'), 'bd'); }
 }
 let pendingOpen = null;
-function handleOpenUrl(url) { if (!url || !/^(content|file):/.test(url)) return; pendingOpen = url; if (DB && DB.settings.ism && !$('#lock').innerHTML) runPendingOpen(); }
+function handleOpenUrl(url) { if (url && url.startsWith('oilabyudjeti://w/')) return widgetOpen(url.slice(17)); if (!url || !/^(content|file):/.test(url)) return; pendingOpen = url; if (DB && DB.settings.ism && !$('#lock').innerHTML) runPendingOpen(); }
 async function runPendingOpen() { const u = pendingOpen; pendingOpen = null; if (!u) return; const txt = await Platform.readUrl(u); if (txt) importFromText(txt); else toast(t('bad_file'), 'bd'); }
 function syncDue() { const s = DB.settings; if (!(+s.oila_soni > 1 || members().length > 1)) return false;
   const first = live(DB.tx).map(x => x.u || 0).filter(Boolean).sort((a, b) => a - b)[0]; const base = s.sync_ts || first; return !!base && Date.now() - base > 7 * 864e5; }
@@ -1202,6 +1205,7 @@ document.addEventListener('visibilitychange', () => {
   if (!DB) return;
   if (document.hidden) hiddenAt = Date.now();
   else if (DB.settings.pin && hiddenAt && Date.now() - hiddenAt > 60000 && !$('#lock').innerHTML) showLock('unlock');
+  else if (DB.settings.ism && !$('#lock').innerHTML) widgetPull().then(ch => { if (ch) render(); });
 });
 
 /* =================== Hodisalar =================== */
@@ -1269,7 +1273,7 @@ document.addEventListener('click', async e => {
     const a = x.dataset.act;
     if (a === 'add') return openTx(null);
     if (a === 'nearedit') return openNear();
-    if (a === 'eye') { DB.settings.yashir = !DB.settings.yashir; await Platform.save(DB); return render(); }
+    if (a === 'eye') { DB.settings.yashir = !DB.settings.yashir; DB.settings.yashir_ts = Date.now(); await Platform.save(DB); widgetPush(); return render(); }
     if (a === 'walsheet') return walletSheet();
     if (a === 'incsheet') return typeSheet('d');
     if (a === 'expsheet') return typeSheet('x');
@@ -1409,7 +1413,7 @@ function onBack() {
 }
 
 /* =================== Işga tuşiriş =================== */
-function afterUnlock() { render(); scheduleNotifications(); setTimeout(tgWeekly, 1500); setTimeout(() => fetchRates(false), 300); setTimeout(() => fetchBanks(false), 900); setTimeout(countUsage, 2500); if (pendingOpen && DB.settings.ism) setTimeout(runPendingOpen, 600); }
+function afterUnlock() { widgetPull().then(ch => { if (ch) render(); }); render(); setTimeout(widgetPush, 400); if (pendingW) setTimeout(runWidget, 350); scheduleNotifications(); setTimeout(tgWeekly, 1500); setTimeout(() => fetchRates(false), 300); setTimeout(() => fetchBanks(false), 900); setTimeout(countUsage, 2500); if (pendingOpen && DB.settings.ism) setTimeout(runPendingOpen, 600); }
 async function boot() {
   DB = await Platform.load();
   if (!DB || !DB.settings) DB = newDB();

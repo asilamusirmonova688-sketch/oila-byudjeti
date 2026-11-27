@@ -467,3 +467,6 @@ Object.assign(I18N.en, { pg_util: 'Utility calculator', util_sub: 'Power, gas, w
   kd_from: 'From wallet', kd_from_none: '— Don\'t record —', kd_from_s: 'A “Kids” expense is recorded from the chosen wallet.', kd_minus: 'Note: spent more than in pocket', kd_del_q: 'Delete this entry?',
   kd_al: 'Time to give {n} the weekly {s}',
   wd_1: 'Monday', wd_2: 'Tuesday', wd_3: 'Wednesday', wd_4: 'Thursday', wd_5: 'Friday', wd_6: 'Saturday', wd_0: 'Sunday' });
+Object.assign(I18N.uz, { w_today: 'Bugun', w_left: 'Oyga qoldi', w_over: 'Oşib ketdi', w_noinc: 'Shu oy daromad kiritilmagan', w_add: 'Xarajat', w_voice: 'Ovoz', w_shop: 'Bozorlik', w_open: 'Ilovani oçing' });
+Object.assign(I18N.ru, { w_today: 'Сегодня', w_left: 'Осталось', w_over: 'Перерасход', w_noinc: 'Доход за месяц не внесён', w_add: 'Расход', w_voice: 'Голос', w_shop: 'Покупки', w_open: 'Откройте приложение' });
+Object.assign(I18N.en, { w_today: 'Today', w_left: 'Left', w_over: 'Over', w_noinc: 'No income this month yet', w_add: 'Expense', w_voice: 'Voice', w_shop: 'Shopping', w_open: 'Open the app' });
